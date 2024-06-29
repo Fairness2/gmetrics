@@ -22,7 +22,7 @@ func HandleMetric(response http.ResponseWriter, request *http.Request) {
 	}
 
 	switch metricType {
-	case "gauge":
+	case metrics.TypeGauge:
 		convertedValue, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
 			//log.Println(err)
@@ -31,7 +31,7 @@ func HandleMetric(response http.ResponseWriter, request *http.Request) {
 		}
 		metrics.MeStore.SetGauge(metricName, metrics.Gauge(convertedValue))
 		fmt.Fprintf(response, "metric %s successfully set", metricName)
-	case "counter":
+	case metrics.TypeCounter:
 		convertedValue, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
 			//log.Println(err)

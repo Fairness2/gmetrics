@@ -37,6 +37,8 @@ func (storage *MemStorage) AddCounter(name string, value Counter) {
 //
 //	value: значение метрики
 //	ok: флаг, указывающий на наличие метрики в хранилище
+//
+// TODO Знаю, что сейчас при наличии одинаковых имён будет передан гауге, поправлю в дальнейшем, когда гет понадобится
 func (storage *MemStorage) Get(name string) (interface{}, bool) {
 	//value, ok := storage.metrics[name]
 	value, ok := storage.gauge[name]

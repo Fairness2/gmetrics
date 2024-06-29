@@ -26,3 +26,5 @@ vendor/
 .vscode
 
 /metricstest
+/cmd/server/server
+/cmd/agent/agent
