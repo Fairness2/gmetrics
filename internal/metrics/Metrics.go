@@ -26,6 +26,6 @@ func (c Counter) Clear() Counter {
 	return 0
 }
 
-func (g Counter) ToString() string {
-	return strconv.FormatInt(int64(g), 10)
+func (c Counter) ToString() string {
+	return strconv.FormatInt(int64(c), 10)
 }
