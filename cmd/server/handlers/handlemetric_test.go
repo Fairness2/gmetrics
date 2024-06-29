@@ -80,72 +80,73 @@ func TestHandleMetric(t *testing.T) {
 	var urlUpdateTemplate = "/update/%s/%s/%s"
 	tests := []struct {
 		name            string
-		sendUrl         string
+		sendURL         string
 		wantStatus      int
 		wantContentType string
 	}{
 		{
 			name:            "Wrong URL",
-			sendUrl:         "/update",
+			sendURL:         "/update",
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "application/json",
 		},
 		{
 			name:            "Empty Type",
-			sendUrl:         fmt.Sprintf(urlUpdateTemplate, "", "someName", "123"),
+			sendURL:         fmt.Sprintf(urlUpdateTemplate, "", "someName", "123"),
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "application/json",
 		},
 		{
 			name:            "Empty Name",
-			sendUrl:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "", "123"),
+			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "", "123"),
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "application/json",
 		},
 		{
 			name:            "Empty Value",
-			sendUrl:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "someName", ""),
+			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "someName", ""),
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "application/json",
 		},
 		{
 			name:            "Wrong type",
-			sendUrl:         fmt.Sprintf(urlUpdateTemplate, "aboba", "someName", "123"),
+			sendURL:         fmt.Sprintf(urlUpdateTemplate, "aboba", "someName", "123"),
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
 		},
 		{
 			name:            "Wrong value gauge",
-			sendUrl:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "someName", "some"),
+			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "someName", "some"),
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
 		},
 		{
 			name:            "Wrong value count",
-			sendUrl:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeCounter, "someName", "some"),
+			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeCounter, "someName", "some"),
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
 		},
 		{
 			name:            "Right value gauge",
-			sendUrl:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "someName", "56.78"),
+			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "someName", "56.78"),
 			wantStatus:      http.StatusOK,
 			wantContentType: "application/json",
 		},
 		{
 			name:            "Right value count",
-			sendUrl:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeCounter, "someName", "5"),
+			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeCounter, "someName", "5"),
 			wantStatus:      http.StatusOK,
 			wantContentType: "application/json",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodPost, test.sendUrl, nil)
+			request := httptest.NewRequest(http.MethodPost, test.sendURL, nil)
 			w := httptest.NewRecorder()
 			HandleMetric(w, request)
 
 			res := w.Result()
+			defer res.Body.Close()
 
 			assert.Equal(t, test.wantStatus, res.StatusCode)
 		})
