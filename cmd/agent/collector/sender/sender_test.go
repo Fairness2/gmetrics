@@ -66,7 +66,7 @@ func TestSendMetric(t *testing.T) {
 			mockServer := tc.setupMock()
 			//mockServer.URL = "http://127.0.0.1:8566"
 			//mockServer.Start()
-			env.ServerUrl = mockServer.URL
+			env.ServerURL = mockServer.URL
 
 			defer mockServer.Close()
 

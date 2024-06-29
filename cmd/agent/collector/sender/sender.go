@@ -78,7 +78,7 @@ func (c *Client) sendMetric(mType string, name string, value string) error {
 	sType := url.QueryEscape(mType)
 	sName := url.QueryEscape(name)
 	sValue := url.QueryEscape(value)
-	sUrl := fmt.Sprintf(urlUpdateTemplate, env.ServerUrl, sType, sName, sValue)
+	sUrl := fmt.Sprintf(urlUpdateTemplate, env.ServerURL, sType, sName, sValue)
 	res, err := c.client.Post(sUrl, "text/plain", nil)
 	fmt.Printf("Finish sending metric %s with value %s type %s\n", name, value, mType)
 	if err != nil {

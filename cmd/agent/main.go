@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"gmetrics/cmd/agent/collector"
-	"os"
+	"time"
 )
 
 func main() {
@@ -11,7 +11,9 @@ func main() {
 	collector.StartCollect()
 	_ = collector.StartSending()
 
-	for {
+	time.Sleep(30 * time.Second)
+
+	/*for {
 		fmt.Println("Agent is running. Print C to finish agent")
 		var command string
 		_, err := fmt.Fscan(os.Stdin, &command)
@@ -21,5 +23,5 @@ func main() {
 		if command == "C" {
 			break
 		}
-	}
+	}*/
 }
