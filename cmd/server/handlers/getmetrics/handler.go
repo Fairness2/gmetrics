@@ -15,7 +15,9 @@ func init() {
 
 	// Синтаксический разбор шаблона всегда в готовую переменную
 	// Загрузка шаблонов вместе с основным шаблоном
-	t["metrics.gohtml"] = template.Must(template.New("user.html").ParseFiles("cmd/server/web/templates/base.gohtml", "cmd/server/web/templates/metrics.gohtml"))
+	t["metrics.gohtml"] = template.Must(template.New("metrics.gohtml").ParseFiles(
+		"cmd/server/web/templates/base.gohtml",
+		"cmd/server/web/templates/metrics.gohtml"))
 }
 
 // Handler Возвращает страницу с метриками

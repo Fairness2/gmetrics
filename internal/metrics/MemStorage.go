@@ -1,5 +1,14 @@
 package metrics
 
+type Storage interface {
+	GetGauges() map[string]Gauge
+	GetCounters() map[string]Counter
+	SetGauge(name string, value Gauge)
+	AddCounter(name string, value Counter)
+	GetGauge(name string) (Gauge, bool)
+	GetCounter(name string) (Counter, bool)
+}
+
 // MemStorage Хранилище метрик в памяти
 type MemStorage struct {
 	gauge   map[string]Gauge
@@ -37,8 +46,6 @@ func (storage *MemStorage) AddCounter(name string, value Counter) {
 //
 //	value: значение метрики
 //	ok: флаг, указывающий на наличие метрики в хранилище
-//
-// TODO Знаю, что сейчас при наличии одинаковых имён будет передан гауге, поправлю в дальнейшем, когда гет понадобится
 func (storage *MemStorage) GetGauge(name string) (Gauge, bool) {
 	value, ok := storage.gauge[name]
 	return value, ok
@@ -49,7 +56,7 @@ func (storage *MemStorage) GetCounter(name string) (Counter, bool) {
 	return cValue, ok
 }
 
-func NewMemStorage() *MemStorage {
+func NewMemStorage() Storage {
 	return &MemStorage{
 		//metrics: make(map[string]interface{}),
 		gauge:   make(map[string]Gauge),
@@ -58,7 +65,7 @@ func NewMemStorage() *MemStorage {
 }
 
 // MeStore Хранилище метрик в памяти.
-var MeStore *MemStorage
+var MeStore Storage
 
 // Инициализация хранилища
 func init() {

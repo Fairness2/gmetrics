@@ -38,7 +38,6 @@ func Handler(response http.ResponseWriter, request *http.Request) {
 		http.NotFound(response, request)
 		return
 	}
-
 }
 
 // parseURL Разбор URL на тип метрики, имя метрики
