@@ -3,13 +3,14 @@ package main
 import (
 	"fmt"
 	"gmetrics/cmd/agent/collector"
+	"gmetrics/cmd/agent/collector/collection"
 	"time"
 )
 
 func main() {
 	fmt.Println("Agent is starting")
 	collector.StartCollect()
-	_ = collector.StartSending()
+	_ = collector.StartSending(collection.Collection)
 
 	time.Sleep(30 * time.Second)
 

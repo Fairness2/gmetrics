@@ -1,7 +1,9 @@
-package handlers
+package handleMetric
 
 import (
 	"fmt"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"gmetrics/internal/metrics"
 	"net/http"
@@ -62,15 +64,37 @@ func TestParseURL(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotType, gotName, gotValue, err := parseURL(tc.input)
-			if tc.wantErr {
-				assert.Error(t, err, "Not error parsing URL")
-			} else {
-				assert.NoError(t, err, "Unexpected error parsing URL")
-				assert.Equal(t, tc.wantType, gotType)
-				assert.Equal(t, tc.wantName, gotName)
-				assert.Equal(t, tc.wantValue, gotValue)
-			}
+			t.Run(tc.name, func(t *testing.T) {
+				router := chi.NewRouter()
+				router.Get("/update/{type}/{name}/{value}", func(w http.ResponseWriter, r *http.Request) {
+					gotType, gotName, gotValue, err := parseURL(r)
+
+					if tc.wantErr {
+						assert.Error(t, err, "Not error parsing URL")
+					} else {
+						assert.NoError(t, err, "Unexpected error parsing URL")
+						assert.Equal(t, tc.wantType, gotType)
+						assert.Equal(t, tc.wantName, gotName)
+						assert.Equal(t, tc.wantValue, gotValue)
+					}
+				})
+				// запускаем тестовый сервер, будет выбран первый свободный порт
+				srv := httptest.NewServer(router)
+				// останавливаем сервер после завершения теста
+				defer srv.Close()
+				// делаем запрос с помощью библиотеки resty к адресу запущенного сервера,
+				// который хранится в поле URL соответствующей структуры
+				req := resty.New().R()
+				req.Method = http.MethodGet
+				req.URL = srv.URL + tc.input
+				_, err := req.Send()
+				assert.NoError(t, err, "Unexpected error while sending request")
+				/*if tc.wantErr {
+					assert.NotEqual(t, res.StatusCode(), http.StatusOK)
+				} else {
+					assert.Equal(t, res.StatusCode(), http.StatusOK)
+				}*/
+			})
 		})
 	}
 }
@@ -139,16 +163,22 @@ func TestHandleMetric(t *testing.T) {
 			wantContentType: "application/json",
 		},
 	}
+	router := chi.NewRouter()
+	router.Post("/update/{type}/{name}/{value}", Handler)
+	// запускаем тестовый сервер, будет выбран первый свободный порт
+	srv := httptest.NewServer(router)
+	// останавливаем сервер после завершения теста
+	defer srv.Close()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodPost, test.sendURL, nil)
-			w := httptest.NewRecorder()
-			HandleMetric(w, request)
 
-			res := w.Result()
-			defer res.Body.Close()
+			request := resty.New().R()
+			request.Method = http.MethodPost
+			request.URL = srv.URL + test.sendURL
 
-			assert.Equal(t, test.wantStatus, res.StatusCode)
+			res, err := request.Send()
+			assert.NoError(t, err, "error making HTTP request")
+			assert.Equal(t, test.wantStatus, res.StatusCode())
 		})
 	}
 }

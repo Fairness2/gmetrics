@@ -31,7 +31,7 @@ func TestSetGauge(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			memStore.SetGauge(tc.mName, tc.wantValue)
-			v, _ := memStore.Get(tc.mName)
+			v, _ := memStore.GetGauge(tc.mName)
 			assert.Equal(t, tc.wantValue, v)
 		})
 	}
@@ -61,16 +61,15 @@ func TestAddCounter(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			memStore.AddCounter(tc.mName, tc.addValue)
-			v, _ := memStore.Get(tc.mName)
+			v, _ := memStore.GetCounter(tc.mName)
 			assert.Equal(t, tc.wantValue, v)
 		})
 	}
 }
 
-func TestGet(t *testing.T) {
+func TestMemStorage_GetGauge(t *testing.T) {
 	memStore := NewMemStorage()
 	memStore.SetGauge("temp", 42.5)
-	memStore.AddCounter("hits", 1)
 
 	testCases := []struct {
 		name      string
@@ -84,6 +83,36 @@ func TestGet(t *testing.T) {
 			ok:        true,
 			wantValue: Gauge(42.5),
 		},
+		{
+			name:      "Get non-existent value",
+			mName:     "load",
+			ok:        false,
+			wantValue: nil,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			v, ok := memStore.GetGauge(tc.mName)
+			if tc.ok {
+				assert.True(t, ok)
+				assert.Equal(t, tc.wantValue, v)
+			} else {
+				assert.False(t, ok)
+			}
+		})
+	}
+}
+
+func TestGet(t *testing.T) {
+	memStore := NewMemStorage()
+	memStore.AddCounter("hits", 1)
+
+	testCases := []struct {
+		name      string
+		mName     string
+		wantValue interface{}
+		ok        bool
+	}{
 		{
 			name:      "Get Counter",
 			mName:     "hits",
@@ -99,7 +128,7 @@ func TestGet(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			v, ok := memStore.Get(tc.mName)
+			v, ok := memStore.GetCounter(tc.mName)
 			if tc.ok {
 				assert.True(t, ok)
 				assert.Equal(t, tc.wantValue, v)

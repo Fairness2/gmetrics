@@ -17,11 +17,11 @@ func init() {
 // Мьютекс для устранения состояния гонки при параллельних внесениях изменений в кэш
 var mutex *sync.RWMutex
 
-// Collection represents a collection of metrics, including various gauges and a counter.
-var Collection *collection
+// Collection represents a CollectionType of metrics, including various gauges and a counter.
+var Collection *CollectionType
 
-// collection represents a collection of metrics, including various gauges and a counter.
-type collection struct {
+// CollectionType represents a CollectionType of metrics, including various gauges and a counter.
+type CollectionType struct {
 	// Alloc is bytes of allocated heap objects.
 	Alloc metrics.Gauge
 	// TotalAlloc is cumulative bytes allocated for heap objects.
@@ -94,13 +94,13 @@ type collection struct {
 	RandomValue metrics.Gauge
 }
 
-// newCollection returns a new instance of the collection type, initialized with default values.
-func newCollection() *collection {
-	return &collection{}
+// newCollection returns a new instance of the CollectionType type, initialized with default values.
+func newCollection() *CollectionType {
+	return &CollectionType{}
 }
 
 // Collect Заполнение коллекции из метрик системы
-func (c *collection) Collect(stats runtime.MemStats) {
+func (c *CollectionType) Collect(stats runtime.MemStats) {
 	fmt.Println("Collecting metrics...")
 	// Использование мьютекса предотвращает попытки одновременной записи в коллекцию
 	mutex.Lock()
@@ -141,18 +141,18 @@ func (c *collection) Collect(stats runtime.MemStats) {
 }
 
 // LockRead Установка лока на изменение
-func (c *collection) LockRead() {
+func (c *CollectionType) LockRead() {
 	//mutex.RLock()
 	mutex.Lock()
 }
 
 // UnlockRead Завершение чтения с collection и освобождение mutex
-func (c *collection) UnlockRead() {
+func (c *CollectionType) UnlockRead() {
 	//mutex.RUnlock()
 	mutex.Unlock()
 }
 
 // ResetCounter Обнуление значения счетчика PollCount
-func (c *collection) ResetCounter() {
+func (c *CollectionType) ResetCounter() {
 	c.PollCount = c.PollCount.Clear()
 }

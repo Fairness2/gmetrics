@@ -2,6 +2,7 @@ package sender
 
 import (
 	"fmt"
+	"github.com/go-resty/resty/v2"
 	"gmetrics/cmd/agent/collector/collection"
 	"gmetrics/cmd/agent/env"
 	"gmetrics/internal/metrics"
@@ -12,13 +13,14 @@ import (
 )
 
 type Client struct {
-	client *http.Client // Клиент для подключения к серверам
+	client            *resty.Client // Клиент для подключения к серверам
+	metricsCollection *collection.CollectionType
 }
 
-func New() *Client {
-	c := &Client{}
-	c.client = &http.Client{
-		Timeout: 10 * time.Second,
+func New(mCollection *collection.CollectionType) *Client {
+	c := &Client{
+		metricsCollection: mCollection,
+		client:            resty.New(),
 	}
 	return c
 }
@@ -40,9 +42,9 @@ func (c *Client) periodicSender() {
 // sendMetrics Функция прохода по метрикам и запуск их отправки
 func (c *Client) sendMetrics() {
 	fmt.Println("Sending metrics")
-	collection.Collection.LockRead()
-	defer collection.Collection.UnlockRead()
-	v := reflect.Indirect(reflect.ValueOf(collection.Collection))
+	c.metricsCollection.LockRead()
+	defer c.metricsCollection.UnlockRead()
+	v := reflect.Indirect(reflect.ValueOf(c.metricsCollection))
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
 		fieldType := v.Type().Field(i)
@@ -67,7 +69,7 @@ func (c *Client) sendMetrics() {
 			}()
 		}
 	}
-	collection.Collection.ResetCounter()
+	c.metricsCollection.ResetCounter()
 }
 
 // sendMetric Отправка метрики
@@ -79,14 +81,18 @@ func (c *Client) sendMetric(mType string, name string, value string) error {
 	sName := url.QueryEscape(name)
 	sValue := url.QueryEscape(value)
 	sURL := fmt.Sprintf(urlUpdateTemplate, env.ServerURL, sType, sName, sValue)
-	res, err := c.client.Post(sURL, "text/plain", nil)
+	res, err := c.client.R().
+		SetHeader("Content-Type", "text/plain").
+		SetBody(nil).
+		Post(sURL)
+	// res, err := c.client.Post(sURL, "text/plain", nil)
 	fmt.Printf("Finish sending metric %s with value %s type %s\n", name, value, mType)
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("http status code %d", res.StatusCode)
+	// defer res.Body.Close()
+	if statusCode := res.StatusCode(); statusCode != http.StatusOK {
+		return fmt.Errorf("http status code %d", statusCode)
 	}
 
 	return nil

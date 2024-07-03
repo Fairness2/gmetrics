@@ -29,8 +29,8 @@ func collectProcess() {
 
 // StartSending starts the process of sending metrics by creating a new sender client and
 // launching a goroutine to execute the periodicSender function.
-func StartSending() *sender.Client {
-	client := sender.New()
+func StartSending(coll *collection.CollectionType) *sender.Client {
+	client := sender.New(coll)
 	fmt.Println("New sender client created")
 	client.StartSender()
 

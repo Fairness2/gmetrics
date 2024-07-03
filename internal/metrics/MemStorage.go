@@ -39,13 +39,12 @@ func (storage *MemStorage) AddCounter(name string, value Counter) {
 //	ok: флаг, указывающий на наличие метрики в хранилище
 //
 // TODO Знаю, что сейчас при наличии одинаковых имён будет передан гауге, поправлю в дальнейшем, когда гет понадобится
-func (storage *MemStorage) Get(name string) (interface{}, bool) {
-	//value, ok := storage.metrics[name]
+func (storage *MemStorage) GetGauge(name string) (Gauge, bool) {
 	value, ok := storage.gauge[name]
-	if ok {
-		return value, ok
+	return value, ok
+}
 
-	}
+func (storage *MemStorage) GetCounter(name string) (Counter, bool) {
 	cValue, ok := storage.counter[name]
 	return cValue, ok
 }
@@ -64,4 +63,12 @@ var MeStore *MemStorage
 // Инициализация хранилища
 func init() {
 	MeStore = NewMemStorage()
+}
+
+func (storage *MemStorage) GetGauges() map[string]Gauge {
+	return storage.gauge
+}
+
+func (storage *MemStorage) GetCounters() map[string]Counter {
+	return storage.counter
 }

@@ -28,3 +28,5 @@ vendor/
 /metricstest
 /cmd/server/server
 /cmd/agent/agent
+/cmd/agent/agent
+/cmd/server/server

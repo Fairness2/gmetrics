@@ -1,21 +1,22 @@
-package handlers
+package handleMetric
 
 import (
 	"fmt"
+	"github.com/go-chi/chi/v5"
+	"gmetrics/internal/helpers"
 	"gmetrics/internal/metrics"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
-// HandleMetric Обработка запроса установки метрики
+// Handler Обработка запроса установки метрики
 //
 // Parameters:
 // - response: http.ResponseWriter объект, содержащий информацию о ответе HTTP
 // - request: http.Request объект, содержащий информацию о запросе HTTP
-func HandleMetric(response http.ResponseWriter, request *http.Request) {
+func Handler(response http.ResponseWriter, request *http.Request) {
 	// Шаблон урл: http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
-	metricType, metricName, metricValue, err := parseURL(request.URL.Path)
+	metricType, metricName, metricValue, err := parseURL(request)
 	if err != nil {
 		http.NotFound(response, request)
 		return
@@ -26,7 +27,7 @@ func HandleMetric(response http.ResponseWriter, request *http.Request) {
 		convertedValue, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
 			//log.Println(err)
-			setHTTPError(response, http.StatusBadRequest, "metric value is not a valid float")
+			helpers.SetHTTPError(response, http.StatusBadRequest, "metric value is not a valid float")
 			return
 		}
 		metrics.MeStore.SetGauge(metricName, metrics.Gauge(convertedValue))
@@ -35,47 +36,32 @@ func HandleMetric(response http.ResponseWriter, request *http.Request) {
 		convertedValue, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
 			//log.Println(err)
-			setHTTPError(response, http.StatusBadRequest, "metric value is not a valid int")
+			helpers.SetHTTPError(response, http.StatusBadRequest, "metric value is not a valid int")
 			return
 		}
 		metrics.MeStore.AddCounter(metricName, metrics.Counter(convertedValue))
 		fmt.Fprintf(response, "metric %s successfully add", metricName)
 	default:
-		setHTTPError(response, http.StatusBadRequest, "invalid metric type")
+		helpers.SetHTTPError(response, http.StatusBadRequest, "invalid metric type")
 		return
 	}
 }
 
-// setHTTPError Отправка ошибки и сообщения ошибки.
-// Parameters:
-// - response: http.ResponseWriter object containing information about the HTTP response
-// - status: the HTTP status code to set in the response
-// - message: the message to write to the response
-func setHTTPError(response http.ResponseWriter, status int, message string) {
-	response.WriteHeader(status)
-	fmt.Fprint(response, message)
-}
-
 // parseURL Разбор URL на тип метрики, имя метрики и значение метрики
 // Parameters:
-// - url: URL, который нужно разобрать на части
+// - request
 // Returns:
 // - metricType: тип метрики
 // - metricName: имя метрики
 // - metricValue: значение метрики
 // - error: ошибка при неверном URL
-func parseURL(url string) (string, string, string, error) {
-	parts := strings.Split(url, "/")
-	if len(parts) != 5 {
-		return "", "", "", fmt.Errorf("invalid URL: %s", url)
-	}
-
-	metricType := parts[2]
-	metricName := parts[3]
-	metricValue := parts[4]
+func parseURL(request *http.Request) (string, string, string, error) {
+	metricType := chi.URLParam(request, "type")
+	metricName := chi.URLParam(request, "name")
+	metricValue := chi.URLParam(request, "value")
 
 	if metricType == "" || metricName == "" || metricValue == "" {
-		return "", "", "", fmt.Errorf("invalid URL: %s", url)
+		return "", "", "", fmt.Errorf("invalid URL: %s", request.URL.Path)
 	}
 
 	return metricType, metricName, metricValue, nil
