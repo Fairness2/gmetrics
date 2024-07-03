@@ -1,5 +1,6 @@
 package metrics
 
+// Storage represents an interface for accessing and manipulating metrics storage.
 type Storage interface {
 	GetGauges() map[string]Gauge
 	GetCounters() map[string]Counter
