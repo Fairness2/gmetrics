@@ -2,9 +2,9 @@ package main
 
 import (
 	"github.com/go-chi/chi/v5"
-	"gmetrics/cmd/server/handlers/getMetric"
-	"gmetrics/cmd/server/handlers/getMetrics"
-	"gmetrics/cmd/server/handlers/handleMetric"
+	"gmetrics/cmd/server/handlers/getmetric"
+	"gmetrics/cmd/server/handlers/getmetrics"
+	"gmetrics/cmd/server/handlers/handlemetric"
 	"net/http"
 )
 
@@ -17,8 +17,8 @@ func main() {
 
 func getRouter() chi.Router {
 	router := chi.NewRouter()
-	router.Post("/update/{type}/{name}/{value}", handleMetric.Handler)
-	router.Get("/", getMetrics.Handler)
-	router.Get("/value/{type}/{name}", getMetric.Handler)
+	router.Post("/update/{type}/{name}/{value}", handlemetric.Handler)
+	router.Get("/", getmetrics.Handler)
+	router.Get("/value/{type}/{name}", getmetric.Handler)
 	return router
 }

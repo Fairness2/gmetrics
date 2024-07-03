@@ -1,4 +1,4 @@
-package getMetrics
+package getmetrics
 
 import (
 	"bytes"

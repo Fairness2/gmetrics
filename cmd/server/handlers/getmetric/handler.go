@@ -1,4 +1,4 @@
-package getMetric
+package getmetric
 
 import (
 	"fmt"
