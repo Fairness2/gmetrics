@@ -1,13 +1,20 @@
 // пакеты исполняемых приложений должны называться main
 package main
 
-import "net/http"
+import (
+	"fmt"
+	"net/http"
+)
 
 func main() {
-	err := http.ListenAndServe(":8080", Pipeline(http.HandlerFunc(webhook), setHeaders))
-	if err != nil {
+	parseFlags()
+	if err := run(); err != nil {
 		panic(err)
 	}
+}
+func run() error {
+	fmt.Println("Running server on", flagRunAddr)
+	return http.ListenAndServe(":8080", Pipeline(http.HandlerFunc(webhook), setHeaders))
 }
 
 type Middleware func(next http.Handler) http.Handler

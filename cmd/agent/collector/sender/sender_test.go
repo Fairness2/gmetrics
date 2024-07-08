@@ -3,7 +3,7 @@ package sender
 import (
 	"github.com/stretchr/testify/assert"
 	"gmetrics/cmd/agent/collector/collection"
-	"gmetrics/cmd/agent/env"
+	"gmetrics/cmd/agent/config"
 	"gmetrics/internal/metrics"
 	"net/http"
 	"net/http/httptest"
@@ -101,7 +101,7 @@ func TestSendMetric(t *testing.T) {
 			mockServer := tc.setupMock()
 			//mockServer.URL = "http://127.0.0.1:8566"
 			//mockServer.Start()
-			env.ServerURL = mockServer.URL
+			config.ServerURL = mockServer.URL
 
 			defer mockServer.Close()
 

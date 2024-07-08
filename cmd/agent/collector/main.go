@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"gmetrics/cmd/agent/collector/collection"
 	"gmetrics/cmd/agent/collector/sender"
-	"gmetrics/cmd/agent/env"
+	"gmetrics/cmd/agent/config"
 	"runtime"
 	"time"
 )
@@ -16,14 +16,14 @@ func StartCollect() {
 
 // collectProcess continuously collects system metrics by reading memory stats,
 // collecting the stats using collection.Collection.Collect, and then sleeping
-// for the duration defined by env.PollInterval.
+// for the duration defined by config.PollInterval.
 func collectProcess() {
-	fmt.Printf("Collect mtrics process starts. Period is %d mseconds\n", env.PollInterval)
+	fmt.Printf("Collect metrics process starts. Period is %d mseconds\n", config.PollInterval)
 	for {
 		stats := runtime.MemStats{}
 		runtime.ReadMemStats(&stats)
 		collection.Collection.Collect(stats)
-		time.Sleep(env.PollInterval)
+		time.Sleep(config.PollInterval)
 	}
 }
 

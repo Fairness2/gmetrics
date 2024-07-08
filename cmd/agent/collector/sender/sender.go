@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	"gmetrics/cmd/agent/collector/collection"
-	"gmetrics/cmd/agent/env"
+	"gmetrics/cmd/agent/config"
 	"gmetrics/internal/metrics"
 	"net/http"
 	"net/url"
@@ -35,7 +35,7 @@ func (c *Client) periodicSender() {
 	fmt.Println("Starting periodic sender")
 	for {
 		c.sendMetrics()
-		time.Sleep(env.ReportInterval)
+		time.Sleep(config.ReportInterval)
 	}
 }
 
@@ -80,7 +80,7 @@ func (c *Client) sendMetric(mType string, name string, value string) error {
 	sType := url.QueryEscape(mType)
 	sName := url.QueryEscape(name)
 	sValue := url.QueryEscape(value)
-	sURL := fmt.Sprintf(urlUpdateTemplate, env.ServerURL, sType, sName, sValue)
+	sURL := fmt.Sprintf(urlUpdateTemplate, config.ServerURL, sType, sName, sValue)
 	res, err := c.client.R().
 		SetHeader("Content-Type", "text/plain").
 		SetBody(nil).

@@ -4,13 +4,18 @@ import (
 	"fmt"
 	"gmetrics/cmd/agent/collector"
 	"gmetrics/cmd/agent/collector/collection"
+	"gmetrics/cmd/agent/config"
 	"time"
 )
 
 func main() {
 	fmt.Println("Agent is starting")
-	collector.StartCollect()
-	_ = collector.StartSending(collection.Collection)
+	// Устанавливаем настройки
+	config.Parse()
+	fmt.Print(config.PrintConfig())
+
+	collector.StartCollect()                          // Запускаем сборку данных
+	_ = collector.StartSending(collection.Collection) // Запускаем отправку данных
 
 	time.Sleep(30 * time.Second)
 
