@@ -21,8 +21,7 @@ func main() {
 	log.Print(config.PrintConfig(cnf))
 
 	// Устанавливаем глобальное хранилище метрик
-	storage := metrics.NewMemStorage()
-	metrics.SetGlobalStorage(storage)
+	metrics.MeStore = metrics.NewMemStorage()
 
 	if err := run(); err != nil { // Запускаем сервер
 		log.Fatal(err)

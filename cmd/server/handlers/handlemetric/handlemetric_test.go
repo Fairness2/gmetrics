@@ -167,7 +167,7 @@ func TestHandleMetric(t *testing.T) {
 
 	// Устанавливаем глобальное хранилище метрик
 	storage := metrics.NewMemStorage()
-	metrics.SetGlobalStorage(storage)
+	metrics.MeStore = storage
 
 	router.Post("/update/{type}/{name}/{value}", Handler)
 	// запускаем тестовый сервер, будет выбран первый свободный порт

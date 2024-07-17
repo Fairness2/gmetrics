@@ -22,11 +22,6 @@ func NewCollection() *Type {
 	return &c
 }
 
-// SetGlobalCollection Установка глобальной коллекции
-func SetGlobalCollection(c *Type) {
-	Collection = c
-}
-
 // CollectProcess continuously collects system metrics by reading memory stats,
 // collecting the stats using collection.Collection.Collect, and then sleeping
 // for the duration defined by config.PollInterval.

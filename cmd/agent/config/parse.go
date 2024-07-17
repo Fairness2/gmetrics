@@ -29,9 +29,9 @@ func Parse() (*CliConfig, error) {
 // parseFromEnv заполняем конфигурацию переменных из окружения
 func parseFromEnv(params *CliConfig) error {
 	cnf := struct {
-		PollInterval   time.Duration `env:"POLL_INTERVAL"`
-		ReportInterval time.Duration `env:"REPORT_INTERVAL"`
-		ServerURL      string        `env:"ADDRESS"`
+		PollInterval   int    `env:"POLL_INTERVAL"`
+		ReportInterval int    `env:"REPORT_INTERVAL"`
+		ServerURL      string `env:"ADDRESS"`
 	}{}
 	err := env.Parse(&cnf)
 	// Если ошибка, то считаем, что вывести конфигурацию из окружения не удалось
@@ -39,10 +39,10 @@ func parseFromEnv(params *CliConfig) error {
 		return err
 	}
 	if cnf.PollInterval > 0 {
-		params.PollInterval = cnf.PollInterval * time.Second
+		params.PollInterval = time.Duration(cnf.PollInterval) * time.Second
 	}
 	if cnf.ReportInterval > 0 {
-		params.ReportInterval = cnf.ReportInterval * time.Second
+		params.ReportInterval = time.Duration(cnf.ReportInterval) * time.Second
 	}
 	if cnf.ServerURL != "" {
 		if err = setServerURL(cnf.ServerURL, params); err != nil {

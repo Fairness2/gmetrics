@@ -12,7 +12,3 @@ type Storage interface {
 
 // MeStore Хранилище метрик в памяти.
 var MeStore Storage
-
-func SetGlobalStorage(storage Storage) {
-	MeStore = storage
-}

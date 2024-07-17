@@ -21,8 +21,7 @@ func main() {
 	log.Print(config.PrintConfig(cnf))
 
 	// Создаём новую коллекцию метрик и устанавливаем её глобально
-	coll := collection.NewCollection()
-	collection.SetGlobalCollection(coll)
+	collection.Collection = collection.NewCollection()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second) // Таймер, чтобы ограничить время работы агента, чтобы пройти тесты
 	defer cancel()
