@@ -11,7 +11,7 @@ type CliConfig struct {
 }
 
 // DefaultServerURL Url сервера получателя метрик по умолчанию
-var DefaultServerURL = "http://localhost:8080"
+var DefaultServerURL = "localhost:8080"
 
 // Params конфигурация приложения
 var Params *CliConfig
