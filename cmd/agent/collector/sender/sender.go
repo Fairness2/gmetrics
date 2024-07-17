@@ -1,23 +1,24 @@
 package sender
 
 import (
+	"context"
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	"gmetrics/cmd/agent/collector/collection"
 	"gmetrics/cmd/agent/config"
 	"gmetrics/internal/metrics"
+	"log"
 	"net/http"
 	"net/url"
-	"reflect"
 	"time"
 )
 
 type Client struct {
 	client            *resty.Client // Клиент для подключения к серверам
-	metricsCollection *collection.CollectionType
+	metricsCollection *collection.Type
 }
 
-func New(mCollection *collection.CollectionType) *Client {
+func New(mCollection *collection.Type) *Client {
 	c := &Client{
 		metricsCollection: mCollection,
 		client:            resty.New(),
@@ -25,68 +26,76 @@ func New(mCollection *collection.CollectionType) *Client {
 	return c
 }
 
-// StartSender Старт начала прослушивания и создание клиента
-func (c *Client) StartSender() {
-	go c.periodicSender()
-}
-
-// periodicSender Циклическая отправка данных
-func (c *Client) periodicSender() {
-	fmt.Println("Starting periodic sender")
+// PeriodicSender Циклическая отправка данных
+func (c *Client) PeriodicSender(ctx context.Context) {
+	log.Println("Starting periodic sender")
 	for {
 		c.sendMetrics()
-		time.Sleep(config.ReportInterval)
+		// Ловим закрытие контекста, чтобы завершить обработку
+		select {
+		case <-ctx.Done():
+			log.Println("Periodic sender stopped")
+			return
+		default:
+			//continue
+		}
+		time.Sleep(config.Params.ReportInterval)
 	}
 }
 
 // sendMetrics Функция прохода по метрикам и запуск их отправки
 func (c *Client) sendMetrics() {
-	fmt.Println("Sending metrics")
-	c.metricsCollection.LockRead()
-	defer c.metricsCollection.UnlockRead()
-	v := reflect.Indirect(reflect.ValueOf(c.metricsCollection))
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Field(i)
-		fieldType := v.Type().Field(i)
-		switch field.Interface().(type) {
+	log.Println("Sending metrics")
+	c.metricsCollection.Lock()
+	defer c.metricsCollection.Unlock()
+	// Отправляем все собранные метрики
+	for name, value := range c.metricsCollection.Values {
+		switch value := value.(type) {
 		case metrics.Gauge:
-			metricName := fieldType.Name
-			metricValue := field.Interface().(metrics.Gauge).ToString()
+			metricValue := value.ToString()
 			go func() {
-				err := c.sendMetric(metrics.TypeGauge, metricName, metricValue)
+				err := c.sendMetric(metrics.TypeGauge, name, metricValue)
 				if err != nil {
-					fmt.Println(err)
+					log.Println(err)
 				}
 			}()
 		case metrics.Counter:
-			metricName := fieldType.Name
-			metricValue := field.Interface().(metrics.Counter).ToString()
+			metricValue := value.ToString()
 			go func() {
-				err := c.sendMetric(metrics.TypeCounter, metricName, metricValue)
+				err := c.sendMetric(metrics.TypeCounter, name, metricValue)
 				if err != nil {
-					fmt.Println(err)
+					log.Println(err)
 				}
 			}()
 		}
 	}
+	// Отдельно отправляем каунт сбора метрик
+	pCnt := c.metricsCollection.PollCount.ToString()
+	go func() {
+		err := c.sendMetric(metrics.TypeCounter, "PollCount", pCnt)
+		if err != nil {
+			log.Println(err)
+		}
+	}()
+
 	c.metricsCollection.ResetCounter()
 }
 
 // sendMetric Отправка метрики
 func (c *Client) sendMetric(mType string, name string, value string) error {
-	fmt.Printf("Sending metric %s with value %s type %s\n", name, value, mType)
+	log.Printf("Sending metric %s with value %s type %s\n", name, value, mType)
 	// urlTemplate Шаблон урл: http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
 	var urlUpdateTemplate = "%s/update/%s/%s/%s"
 	sType := url.QueryEscape(mType)
 	sName := url.QueryEscape(name)
 	sValue := url.QueryEscape(value)
-	sURL := fmt.Sprintf(urlUpdateTemplate, config.ServerURL, sType, sName, sValue)
+	sURL := fmt.Sprintf(urlUpdateTemplate, config.Params.ServerURL, sType, sName, sValue)
 	res, err := c.client.R().
 		SetHeader("Content-Type", "text/plain").
 		SetBody(nil).
 		Post(sURL)
 	// res, err := c.client.Post(sURL, "text/plain", nil)
-	fmt.Printf("Finish sending metric %s with value %s type %s\n", name, value, mType)
+	log.Printf("Finish sending metric %s with value %s type %s\n", name, value, mType)
 	if err != nil {
 		return err
 	}
@@ -96,4 +105,11 @@ func (c *Client) sendMetric(mType string, name string, value string) error {
 	}
 
 	return nil
+}
+
+// NewSender starts the process of sending metrics by creating a new sender client and
+// launching a goroutine to execute the periodicSender function.
+func NewSender(coll *collection.Type) *Client {
+	client := New(coll)
+	return client
 }

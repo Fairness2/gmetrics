@@ -10,37 +10,39 @@ import (
 	"testing"
 )
 
-func getMockCollection() *collection.CollectionType {
-	return &collection.CollectionType{
-		Alloc:         1,
-		TotalAlloc:    2,
-		BuckHashSys:   3,
-		Frees:         4,
-		GCCPUFraction: 5,
-		GCSys:         6,
-		HeapAlloc:     7,
-		HeapIdle:      8,
-		HeapInuse:     9,
-		HeapObjects:   10,
-		HeapReleased:  11,
-		HeapSys:       12,
-		LastGC:        13,
-		Lookups:       14,
-		MCacheInuse:   15,
-		MCacheSys:     16,
-		MSpanInuse:    17,
-		MSpanSys:      18,
-		Mallocs:       19,
-		NextGC:        20,
-		NumForcedGC:   21,
-		NumGC:         22,
-		OtherSys:      23,
-		PauseTotalNs:  24,
-		StackInuse:    25,
-		StackSys:      26,
-		Sys:           27,
-		PollCount:     28,
-		RandomValue:   29,
+func getMockCollection() *collection.Type {
+	return &collection.Type{
+		Values: map[string]any{
+			"Alloc":         1,
+			"TotalAlloc":    2,
+			"BuckHashSys":   3,
+			"Frees":         4,
+			"GCCPUFraction": 5,
+			"GCSys":         6,
+			"HeapAlloc":     7,
+			"HeapIdle":      8,
+			"HeapInuse":     9,
+			"HeapObjects":   10,
+			"HeapReleased":  11,
+			"HeapSys":       12,
+			"LastGC":        13,
+			"Lookups":       14,
+			"MCacheInuse":   15,
+			"MCacheSys":     16,
+			"MSpanInuse":    17,
+			"MSpanSys":      18,
+			"Mallocs":       19,
+			"NextGC":        20,
+			"NumForcedGC":   21,
+			"NumGC":         22,
+			"OtherSys":      23,
+			"PauseTotalNs":  24,
+			"StackInuse":    25,
+			"StackSys":      26,
+			"Sys":           27,
+			"RandomValue":   29,
+		},
+		PollCount: 28,
 	}
 }
 
@@ -59,7 +61,7 @@ func TestSendMetric(t *testing.T) {
 		expectedError bool
 	}{
 		{
-			name: "successful metric send",
+			name: "successful_metric_send",
 			setupMock: func() *httptest.Server {
 				return httptest.NewServer(http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 					responseWriter.WriteHeader(http.StatusOK)
@@ -71,7 +73,7 @@ func TestSendMetric(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name: "invalid http status",
+			name: "HTTP_status_bad_request",
 			setupMock: func() *httptest.Server {
 				return httptest.NewServer(http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 					responseWriter.WriteHeader(http.StatusBadRequest)
@@ -83,7 +85,7 @@ func TestSendMetric(t *testing.T) {
 			expectedError: true,
 		},
 		{
-			name: "invalid http status",
+			name: "HTTP_status_not_found",
 			setupMock: func() *httptest.Server {
 				return httptest.NewServer(http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 					responseWriter.WriteHeader(http.StatusNotFound)
@@ -96,12 +98,12 @@ func TestSendMetric(t *testing.T) {
 		},
 	}
 
+	config.SetGlobalConfig(config.InitializeNewCliConfig())
+
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			mockServer := tc.setupMock()
-			//mockServer.URL = "http://127.0.0.1:8566"
-			//mockServer.Start()
-			config.ServerURL = mockServer.URL
+			config.Params.ServerURL = mockServer.URL
 
 			defer mockServer.Close()
 

@@ -2,7 +2,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -13,7 +13,7 @@ func main() {
 	}
 }
 func run() error {
-	fmt.Println("Running server on", flagRunAddr)
+	log.Println("Running server on", flagRunAddr)
 	return http.ListenAndServe(":8080", Pipeline(http.HandlerFunc(webhook), setHeaders))
 }
 

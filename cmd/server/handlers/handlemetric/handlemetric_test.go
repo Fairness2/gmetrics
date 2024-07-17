@@ -21,7 +21,7 @@ func TestParseURL(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name:      "validURL",
+			name:      "valid_URL",
 			input:     "/update/metrictype/metricname/metricvalue",
 			wantType:  "metrictype",
 			wantName:  "metricname",
@@ -29,7 +29,7 @@ func TestParseURL(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name:      "incompleteURL",
+			name:      "incomplete_URL",
 			input:     "/update/metrictype/metricname/",
 			wantType:  "",
 			wantName:  "",
@@ -37,7 +37,7 @@ func TestParseURL(t *testing.T) {
 			wantErr:   true,
 		},
 		{
-			name:      "emptySectionURL",
+			name:      "empty_section_URL",
 			input:     "/update/metrictype//metricvalue",
 			wantType:  "",
 			wantName:  "",
@@ -45,7 +45,7 @@ func TestParseURL(t *testing.T) {
 			wantErr:   true,
 		},
 		{
-			name:      "allEmptyURL",
+			name:      "all_empty_URL",
 			input:     "/update///",
 			wantType:  "",
 			wantName:  "",
@@ -53,7 +53,7 @@ func TestParseURL(t *testing.T) {
 			wantErr:   true,
 		},
 		{
-			name:      "moreSectionsURL",
+			name:      "more_sections_URL",
 			input:     "/update/metrictype/metricname/metricvalue/extra",
 			wantType:  "",
 			wantName:  "",
@@ -109,61 +109,66 @@ func TestHandleMetric(t *testing.T) {
 		wantContentType string
 	}{
 		{
-			name:            "Wrong URL",
+			name:            "wrong_URL",
 			sendURL:         "/update",
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "application/json",
 		},
 		{
-			name:            "Empty Type",
+			name:            "empty_type",
 			sendURL:         fmt.Sprintf(urlUpdateTemplate, "", "someName", "123"),
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "application/json",
 		},
 		{
-			name:            "Empty Name",
+			name:            "empty_name",
 			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "", "123"),
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "application/json",
 		},
 		{
-			name:            "Empty Value",
+			name:            "empty_value",
 			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "someName", ""),
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "application/json",
 		},
 		{
-			name:            "Wrong type",
+			name:            "wrong_type",
 			sendURL:         fmt.Sprintf(urlUpdateTemplate, "aboba", "someName", "123"),
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
 		},
 		{
-			name:            "Wrong value gauge",
+			name:            "wrong_value_gauge",
 			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "someName", "some"),
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
 		},
 		{
-			name:            "Wrong value count",
+			name:            "wrong_value_count",
 			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeCounter, "someName", "some"),
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
 		},
 		{
-			name:            "Right value gauge",
+			name:            "right_value_gauge",
 			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "someName", "56.78"),
 			wantStatus:      http.StatusOK,
 			wantContentType: "application/json",
 		},
 		{
-			name:            "Right value count",
+			name:            "right_value_count",
 			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeCounter, "someName", "5"),
 			wantStatus:      http.StatusOK,
 			wantContentType: "application/json",
 		},
 	}
 	router := chi.NewRouter()
+
+	// Устанавливаем глобальное хранилище метрик
+	storage := metrics.NewMemStorage()
+	metrics.SetGlobalStorage(storage)
+
 	router.Post("/update/{type}/{name}/{value}", Handler)
 	// запускаем тестовый сервер, будет выбран первый свободный порт
 	srv := httptest.NewServer(router)

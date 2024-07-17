@@ -16,25 +16,25 @@ func TestSetHTTPError(t *testing.T) {
 		expectedResponse string
 	}{
 		{
-			name:             "OK Status",
+			name:             "OK_status",
 			mockStatus:       http.StatusOK,
 			mockMessage:      "OK",
 			expectedResponse: "OK",
 		},
 		{
-			name:             "Not Found Status",
+			name:             "not_found_status",
 			mockStatus:       http.StatusNotFound,
 			mockMessage:      "Not Found",
 			expectedResponse: "Not Found",
 		},
 		{
-			name:             "Internal Server Error Status",
+			name:             "internal_server_error_status",
 			mockStatus:       http.StatusInternalServerError,
 			mockMessage:      "Internal Server Error",
 			expectedResponse: "Internal Server Error",
 		},
 		{
-			name:             "Empty Message",
+			name:             "empty_message",
 			mockStatus:       http.StatusInternalServerError,
 			mockMessage:      "",
 			expectedResponse: "",
@@ -46,12 +46,10 @@ func TestSetHTTPError(t *testing.T) {
 			response := httptest.NewRecorder()
 			SetHTTPError(response, c.mockStatus, c.mockMessage)
 			result := response.Result()
+			defer result.Body.Close()
 
 			assert.Equal(t, c.mockStatus, result.StatusCode)
-
-			defer result.Body.Close()
 			body, err := io.ReadAll(result.Body)
-
 			assert.NoError(t, err)
 			assert.Equal(t, c.expectedResponse, string(body))
 		})

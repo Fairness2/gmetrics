@@ -49,12 +49,12 @@ func TestHandler(t *testing.T) {
 		wantValue map[string]string
 	}{
 		{
-			name:      "no metrics",
+			name:      "no_metrics",
 			values:    args{},
 			wantValue: map[string]string{},
 		},
 		{
-			name: "some gauges",
+			name: "some_gauges",
 			values: args{
 				gauges: map[string]metrics.Gauge{
 					"test_gauge1": 56.34,
@@ -67,7 +67,7 @@ func TestHandler(t *testing.T) {
 			},
 		},
 		{
-			name: "some counters",
+			name: "some_counters",
 			values: args{
 				counters: map[string]metrics.Counter{
 					"test_counter1": 4,
@@ -80,7 +80,7 @@ func TestHandler(t *testing.T) {
 			},
 		},
 		{
-			name: "gauges and counters",
+			name: "gauges_and_counters",
 			values: args{
 				gauges: map[string]metrics.Gauge{
 					"test_gauge1": 56.34,

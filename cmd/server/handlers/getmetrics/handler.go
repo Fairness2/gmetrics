@@ -8,14 +8,13 @@ import (
 	"net/http"
 )
 
-var t map[string]*template.Template // Массив для хранения шиблонов с их именами
+var t *template.Template // Массив для хранения шиблонов с их именами
 
 func init() {
-	t = make(map[string]*template.Template)
 
 	// Синтаксический разбор шаблона всегда в готовую переменную
 	// Загрузка шаблонов вместе с основным шаблоном
-	t["metrics.gohtml"] = template.Must(template.New("metrics.gohtml").ParseFiles(
+	t = template.Must(template.New("metrics.gohtml").ParseFiles(
 		"cmd/server/web/templates/base.gohtml",
 		"cmd/server/web/templates/metrics.gohtml"))
 }
@@ -50,8 +49,8 @@ func Handler(response http.ResponseWriter, request *http.Request) {
 		GaugeList:   gaugeList,
 		CounterList: counterList,
 	}
-	var buff bytes.Buffer                                           // Создание буфера для сохранения результата побработки шаблона
-	err := t["metrics.gohtml"].ExecuteTemplate(&buff, "base", data) // Подключение шиблона к странице
+	var buff bytes.Buffer                         // Создание буфера для сохранения результата побработки шаблона
+	err := t.ExecuteTemplate(&buff, "base", data) // Подключение шиблона к странице
 	if err != nil {
 		helpers.SetHTTPError(response, http.StatusInternalServerError, err.Error())
 		return

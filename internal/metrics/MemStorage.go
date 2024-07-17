@@ -1,20 +1,13 @@
 package metrics
 
-// Storage represents an interface for accessing and manipulating metrics storage.
-type Storage interface {
-	GetGauges() map[string]Gauge
-	GetCounters() map[string]Counter
-	SetGauge(name string, value Gauge)
-	AddCounter(name string, value Counter)
-	GetGauge(name string) (Gauge, bool)
-	GetCounter(name string) (Counter, bool)
-}
+import "sync"
 
 // MemStorage Хранилище метрик в памяти
 type MemStorage struct {
 	gauge   map[string]Gauge
 	counter map[string]Counter
-	//metrics map[string]interface{}
+	mutex   *sync.RWMutex
+	//metrics map[string]any
 }
 
 // Set Установка значения метрики в хранилище
@@ -22,15 +15,19 @@ type MemStorage struct {
 //
 //	name: the name of the metric
 //	value: the value to be stored for the metric
-/*func (storage *MemStorage) Set(name string, value interface{}) {
+/*func (storage *MemStorage) Set(name string, value any) {
 	storage.metrics[name] = value
 }*/
 
 func (storage *MemStorage) SetGauge(name string, value Gauge) {
+	storage.mutex.Lock()
+	defer storage.mutex.Unlock()
 	storage.gauge[name] = value
 }
 
 func (storage *MemStorage) AddCounter(name string, value Counter) {
+	storage.mutex.Lock()
+	defer storage.mutex.Unlock()
 	oldValue, ok := storage.counter[name]
 	if ok {
 		value = oldValue.Add(value)
@@ -48,35 +45,36 @@ func (storage *MemStorage) AddCounter(name string, value Counter) {
 //	value: значение метрики
 //	ok: флаг, указывающий на наличие метрики в хранилище
 func (storage *MemStorage) GetGauge(name string) (Gauge, bool) {
+	storage.mutex.RLock()
+	defer storage.mutex.RUnlock()
 	value, ok := storage.gauge[name]
 	return value, ok
 }
 
 func (storage *MemStorage) GetCounter(name string) (Counter, bool) {
+	storage.mutex.RLock()
+	defer storage.mutex.RUnlock()
 	cValue, ok := storage.counter[name]
 	return cValue, ok
 }
 
 func NewMemStorage() Storage {
 	return &MemStorage{
-		//metrics: make(map[string]interface{}),
+		//metrics: make(map[string]any),
 		gauge:   make(map[string]Gauge),
 		counter: make(map[string]Counter),
+		mutex:   new(sync.RWMutex),
 	}
 }
 
-// MeStore Хранилище метрик в памяти.
-var MeStore Storage
-
-// Инициализация хранилища
-func init() {
-	MeStore = NewMemStorage()
-}
-
 func (storage *MemStorage) GetGauges() map[string]Gauge {
+	storage.mutex.RLock()
+	defer storage.mutex.RUnlock()
 	return storage.gauge
 }
 
 func (storage *MemStorage) GetCounters() map[string]Counter {
+	storage.mutex.RLock()
+	defer storage.mutex.RUnlock()
 	return storage.counter
 }

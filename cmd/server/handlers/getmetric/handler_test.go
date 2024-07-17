@@ -21,7 +21,7 @@ func TestParseURL(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name:      "validURL",
+			name:      "valid_URL",
 			input:     "/value/metrictype/metricname",
 			wantType:  "metrictype",
 			wantName:  "metricname",
@@ -29,7 +29,7 @@ func TestParseURL(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name:      "emptySectionURL",
+			name:      "empty_section_URL",
 			input:     "/update/metrictype//",
 			wantType:  "",
 			wantName:  "",
@@ -80,48 +80,48 @@ func TestHandleMetric(t *testing.T) {
 		wantValue       string
 	}{
 		{
-			name:            "Empty Type",
+			name:            "empty_type",
 			sendURL:         fmt.Sprintf(urlUpdateTemplate, "", "someName"),
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "application/json",
 			wantValue:       "",
 		},
 		{
-			name:            "Empty Name",
+			name:            "empty_name",
 			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, ""),
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "application/json",
 			wantValue:       "",
 		},
 		{
-			name:            "Wrong type",
+			name:            "wrong_type",
 			sendURL:         fmt.Sprintf(urlUpdateTemplate, "aboba", "someName"),
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "application/json",
 		},
 		{
-			name:            "Not empty gauge",
+			name:            "not_empty_gauge",
 			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "someName"),
 			wantStatus:      http.StatusOK,
 			wantContentType: "application/json",
 			wantValue:       "56.67",
 		},
 		{
-			name:            "Not empty count",
+			name:            "not_empty_count",
 			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeCounter, "someName"),
 			wantStatus:      http.StatusOK,
 			wantContentType: "application/json",
 			wantValue:       "5",
 		},
 		{
-			name:            "Empty gauge",
+			name:            "empty_gauge",
 			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "someName1"),
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "application/json",
 			wantValue:       "",
 		},
 		{
-			name:            "Empty count",
+			name:            "empty_count",
 			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeCounter, "someName1"),
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "application/json",

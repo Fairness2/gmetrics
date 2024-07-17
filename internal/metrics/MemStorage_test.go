@@ -18,12 +18,12 @@ func TestSetGauge(t *testing.T) {
 		wantValue Gauge
 	}{
 		{
-			name:      "Set new Gauge",
+			name:      "set_new_gauge",
 			mName:     "metricname",
 			wantValue: Gauge(42.5),
 		},
 		{
-			name:      "Overwrite Gauge",
+			name:      "overwrite_gauge",
 			mName:     "metricname",
 			wantValue: Gauge(43.5),
 		},
@@ -46,13 +46,13 @@ func TestAddCounter(t *testing.T) {
 		wantValue Counter
 	}{
 		{
-			name:      "Add new Counter",
+			name:      "add_new_counter",
 			mName:     "metricname",
 			addValue:  Counter(5),
 			wantValue: Counter(5),
 		},
 		{
-			name:      "Increment Counter",
+			name:      "increment_counter",
 			mName:     "metricname",
 			addValue:  Counter(5),
 			wantValue: Counter(10),
@@ -74,17 +74,17 @@ func TestMemStorage_GetGauge(t *testing.T) {
 	testCases := []struct {
 		name      string
 		mName     string
-		wantValue interface{}
+		wantValue any
 		ok        bool
 	}{
 		{
-			name:      "Get Gauge",
+			name:      "get_gauge",
 			mName:     "temp",
 			ok:        true,
 			wantValue: Gauge(42.5),
 		},
 		{
-			name:      "Get non-existent value",
+			name:      "get_non-existent_value",
 			mName:     "load",
 			ok:        false,
 			wantValue: nil,
@@ -110,17 +110,17 @@ func TestGet(t *testing.T) {
 	testCases := []struct {
 		name      string
 		mName     string
-		wantValue interface{}
+		wantValue any
 		ok        bool
 	}{
 		{
-			name:      "Get Counter",
+			name:      "get_counter",
 			mName:     "hits",
 			ok:        true,
 			wantValue: Counter(1),
 		},
 		{
-			name:      "Get non-existent value",
+			name:      "get_non-existent_value",
 			mName:     "load",
 			ok:        false,
 			wantValue: nil,

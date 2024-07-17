@@ -1,8 +1,7 @@
 package config
 
 import (
-	"flag"
-	"os"
+	"fmt"
 )
 
 // CliConfig конфигурация сервера из командной строки
@@ -11,36 +10,25 @@ type CliConfig struct {
 	Address string `env:"ADDRESS"`
 }
 
-// Config конфигурация приложения
+// DefaultServerURL Url сервера получателя метрик по умолчанию
+var DefaultServerURL = "http://localhost:8080"
+
+// Params конфигурация приложения
 var Params *CliConfig
 
 // InitializeNewCliConfig инициализация конфигурации приложения
-func InitializeNewCliConfig() {
-	Params = new(CliConfig)
-}
-
-// Parse инициализирует новую консольную конфигурацию, обрабатывает аргументы командной строки
-func Parse() {
-	// Регистрируем новое хранилище
-	InitializeNewCliConfig()
-	// Заполняем конфигурацию из параметров командной строки
-	parseFromCli()
-	// Заполняем конфигурацию из окружения
-	parseFromEnv()
-}
-
-// parseFromEnv заполняем конфигурацию переменных из окружения
-func parseFromEnv() {
-	envAddr := os.Getenv("ADDRESS")
-	if envAddr != "" {
-		Params.Address = envAddr
+func InitializeNewCliConfig() *CliConfig {
+	return &CliConfig{
+		Address: DefaultServerURL,
 	}
 }
 
-// parseFromCli заполняем конфигурацию из параметров командной строки
-func parseFromCli() {
-	// Регистрируем флаги конфигурации
-	flag.StringVar(&Params.Address, "a", "localhost:8080", "address and port to run server")
-	// Парсим переданные серверу аргументы в зарегистрированные переменные
-	flag.Parse()
+// SetGlobalConfig устанавливает глобальную конфигурацию приложения
+func SetGlobalConfig(cnf *CliConfig) {
+	Params = cnf
+}
+
+// PrintConfig возвращает строку с информацией о текущей конфигурации сервера и интервалах сбора метрик и отправки метрик.
+func PrintConfig(cnf *CliConfig) string {
+	return fmt.Sprintf("Server Address: %s\n", cnf.Address)
 }

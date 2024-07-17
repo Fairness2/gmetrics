@@ -1,25 +1,37 @@
 package main
 
 import (
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"gmetrics/cmd/server/config"
 	"gmetrics/cmd/server/handlers/getmetric"
 	"gmetrics/cmd/server/handlers/getmetrics"
 	"gmetrics/cmd/server/handlers/handlemetric"
+	"gmetrics/internal/metrics"
+	"log"
 	"net/http"
 )
 
 func main() {
-	config.Parse()                // Заполняем конфигурацию сервера
+	// Устанавливаем настройки
+	cnf, err := config.Parse()
+	if err != nil {
+		log.Fatal(err)
+	}
+	config.SetGlobalConfig(cnf)
+	log.Print(config.PrintConfig(cnf))
+
+	// Устанавливаем глобальное хранилище метрик
+	storage := metrics.NewMemStorage()
+	metrics.SetGlobalStorage(storage)
+
 	if err := run(); err != nil { // Запускаем сервер
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
 // run запуск сервера
 func run() error {
-	fmt.Println("Running server on", config.Params.Address)
+	log.Println("Running server on", config.Params.Address)
 	return http.ListenAndServe(config.Params.Address, getRouter())
 }
 

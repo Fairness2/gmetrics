@@ -27,18 +27,24 @@ func TestWebhook(t *testing.T) {
 
 	// описываем набор данных: метод запроса, ожидаемый код ответа, ожидаемое тело
 	testCases := []struct {
+		name         string
 		method       string
 		expectedCode int
 		expectedBody string
 	}{
-		{method: http.MethodGet, expectedCode: http.StatusMethodNotAllowed, expectedBody: ""},
-		{method: http.MethodPut, expectedCode: http.StatusMethodNotAllowed, expectedBody: ""},
-		{method: http.MethodDelete, expectedCode: http.StatusMethodNotAllowed, expectedBody: ""},
-		{method: http.MethodPost, expectedCode: http.StatusOK, expectedBody: successBody},
+		{
+			name:         "sending_using_GET",
+			method:       http.MethodGet,
+			expectedCode: http.StatusMethodNotAllowed,
+			expectedBody: "",
+		},
+		{name: "sending_using_PUT", method: http.MethodPut, expectedCode: http.StatusMethodNotAllowed, expectedBody: ""},
+		{name: "sending_using_DELETE", method: http.MethodDelete, expectedCode: http.StatusMethodNotAllowed, expectedBody: ""},
+		{name: "sending_using_POST", method: http.MethodPost, expectedCode: http.StatusOK, expectedBody: successBody},
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.method, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			// делаем запрос с помощью библиотеки resty к адресу запущенного сервера,
 			// который хранится в поле URL соответствующей структуры
 			req := resty.New().R()
