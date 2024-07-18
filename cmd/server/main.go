@@ -6,6 +6,7 @@ import (
 	"gmetrics/cmd/server/handlers/getmetric"
 	"gmetrics/cmd/server/handlers/getmetrics"
 	"gmetrics/cmd/server/handlers/handlemetric"
+	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
 	"log"
 	"net/http"
@@ -17,9 +18,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	config.SetGlobalConfig(cnf)
-	log.Print(config.PrintConfig(cnf))
-
+	config.Params = cnf
+	// Инициализируем логер
+	lgr, err := logger.New(cnf.LogLevel)
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger.G = lgr
+	// Показываем конфигурацию сервера
+	logger.G.Infow("Running server with configuration",
+		"address", cnf.Address,
+		"logLevel", cnf.LogLevel,
+	)
 	// Устанавливаем глобальное хранилище метрик
 	metrics.MeStore = metrics.NewMemStorage()
 
@@ -30,13 +40,15 @@ func main() {
 
 // run запуск сервера
 func run() error {
-	log.Println("Running server on", config.Params.Address)
+	logger.G.Infof("Running server on %s", config.Params.Address)
 	return http.ListenAndServe(config.Params.Address, getRouter())
 }
 
 // getRouter конфигурация роутинга приложение
 func getRouter() chi.Router {
 	router := chi.NewRouter()
+	// Устанавилваем мидлваре с логированием запросов
+	router.Use(logger.LogResponse, logger.LogRequests)
 	// Сохранение метрики
 	router.Post("/update/{type}/{name}/{value}", handlemetric.Handler)
 	// Получение всех метрик

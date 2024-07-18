@@ -17,7 +17,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	config.SetGlobalConfig(cnf)
+	config.Params = cnf
 	log.Print(config.PrintConfig(cnf))
 
 	// Создаём новую коллекцию метрик и устанавливаем её глобально

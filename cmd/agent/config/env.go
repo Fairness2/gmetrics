@@ -43,8 +43,3 @@ var DefaultServerURL = "http://localhost:8080"
 func PrintConfig(cnf *CliConfig) string {
 	return fmt.Sprintf("Server Address: %s\nFrequency of metrics collection: %d s.\nFrequency of sending metrics: %d s.\n", cnf.ServerURL, cnf.PollInterval/time.Second, cnf.ReportInterval/time.Second)
 }
-
-// SetGlobalConfig устанавливает глобальную конфигурацию приложения
-func SetGlobalConfig(cnf *CliConfig) {
-	Params = cnf
-}

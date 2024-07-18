@@ -2,7 +2,8 @@
 package main
 
 import (
-	"log"
+	logger "gmetrics/internal/logger/skill"
+	"go.uber.org/zap"
 	"net/http"
 )
 
@@ -13,8 +14,14 @@ func main() {
 	}
 }
 func run() error {
-	log.Println("Running server on", flagRunAddr)
-	return http.ListenAndServe(":8080", Pipeline(http.HandlerFunc(webhook), setHeaders))
+	// Создаём логер
+	if err := logger.Initialize(flagLogLevel); err != nil {
+		return err
+	}
+
+	logger.Log.Info("Running server", zap.String("address", flagRunAddr))
+	// оборачиваем хендлер webhook в middleware с логированием
+	return http.ListenAndServe(":8080", Pipeline(http.HandlerFunc(webhook), logger.RequestLogger, setHeaders))
 }
 
 type Middleware func(next http.Handler) http.Handler
@@ -40,6 +47,7 @@ func setHeaders(next http.Handler) http.Handler {
 func webhook(response http.ResponseWriter, request *http.Request) {
 	// Разрешаем только POST запросы
 	if request.Method != http.MethodPost {
+		logger.Log.Debug("got request with bad method", zap.String("method", request.Method))
 		response.WriteHeader(http.StatusMethodNotAllowed) // Возвращаем ответ со статусом 405, метод не разрешён
 		return
 	}
@@ -55,5 +63,5 @@ func webhook(response http.ResponseWriter, request *http.Request) {
         },
         "version": "1.0"
       }`))
-
+	logger.Log.Debug("sending HTTP 200 response")
 }
