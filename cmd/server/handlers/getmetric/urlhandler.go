@@ -7,12 +7,12 @@ import (
 	"net/http"
 )
 
-// Handler Возвращает метрику
+// URLHandler Возвращает метрику
 //
 // Parameters:
 // - response: http.ResponseWriter объект, содержащий информацию о ответе HTTP.
 // - request: http.Request объект, содержащий информацию о запросе HTTP.
-func Handler(response http.ResponseWriter, request *http.Request) {
+func URLHandler(response http.ResponseWriter, request *http.Request) {
 	metricType, metricName, err := parseURL(request)
 	if err != nil {
 		http.NotFound(response, request)

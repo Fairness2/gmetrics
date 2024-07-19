@@ -30,16 +30,14 @@ func New(mCollection *collection.Type) *Client {
 func (c *Client) PeriodicSender(ctx context.Context) {
 	log.Println("Starting periodic sender")
 	for {
-		c.sendMetrics()
 		// Ловим закрытие контекста, чтобы завершить обработку
 		select {
+		case <-time.After(config.Params.ReportInterval):
+			c.sendMetrics()
 		case <-ctx.Done():
 			log.Println("Periodic sender stopped")
 			return
-		default:
-			//continue
 		}
-		time.Sleep(config.Params.ReportInterval)
 	}
 }
 
@@ -83,6 +81,9 @@ func (c *Client) sendMetrics() {
 
 // sendMetric Отправка метрики
 func (c *Client) sendMetric(mType string, name string, value string) error {
+
+	// TODO новый апи
+
 	log.Printf("Sending metric %s with value %s type %s\n", name, value, mType)
 	// urlTemplate Шаблон урл: http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
 	var urlUpdateTemplate = "%s/update/%s/%s/%s"

@@ -21,8 +21,8 @@ var DefaultLogLevel = zap.InfoLevel.String()
 // Params конфигурация приложения
 var Params *CliConfig
 
-// InitializeNewCliConfig инициализация конфигурации приложения
-func InitializeNewCliConfig() *CliConfig {
+// InitializeDefaultConfig инициализация конфигурации приложения
+func InitializeDefaultConfig() *CliConfig {
 	return &CliConfig{
 		Address:  DefaultServerURL,
 		LogLevel: DefaultLogLevel,

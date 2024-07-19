@@ -6,7 +6,10 @@ import (
 	"gmetrics/cmd/agent/collector/sender"
 	"gmetrics/cmd/agent/config"
 	"log"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -40,19 +43,16 @@ func main() {
 		client.PeriodicSender(ctx)
 		defer wg.Done()
 	}()
-
-	// Бесконечный цикл со считыванием ввода консоли, чтобы программа работала пока нужно
-	/*for {
-		fmt.Println("Agent is running. Print C to finish agent")
-		var command string
-		_, err := fmt.Fscan(os.Stdin, &command)
-		if err != nil {
-			log.Println(err)
-		}
-		if command == "C" {
-			cancel()
-			break
-		}
-	}*/
+	// Ожидаем сигнала завершения Ctrl+C, чтобы корректно завершить работу
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case <-stop:
+		cancel()
+	case <-ctx.Done():
+		// continue
+	}
+	log.Println("Agent is stopping")
 	wg.Wait() // Ожидаем завершения всех горутин
+	log.Println("Agent stopped")
 }

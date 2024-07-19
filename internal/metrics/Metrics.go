@@ -14,6 +14,10 @@ func (g Gauge) ToString() string {
 	return strconv.FormatFloat(float64(g), 'f', -1, 64)
 }
 
+func (g Gauge) GetRaw() float64 {
+	return float64(g)
+}
+
 // Counter Тип метрики counter
 type Counter int64
 
@@ -28,4 +32,8 @@ func (c Counter) Clear() Counter {
 
 func (c Counter) ToString() string {
 	return strconv.FormatInt(int64(c), 10)
+}
+
+func (c Counter) GetRaw() int64 {
+	return int64(c)
 }

@@ -8,6 +8,7 @@ import (
 	"gmetrics/cmd/server/handlers/handlemetric"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
+	"gmetrics/internal/middlewares"
 	"log"
 	"net/http"
 )
@@ -49,11 +50,20 @@ func getRouter() chi.Router {
 	router := chi.NewRouter()
 	// Устанавилваем мидлваре с логированием запросов
 	router.Use(logger.LogResponse, logger.LogRequests)
-	// Сохранение метрики
-	router.Post("/update/{type}/{name}/{value}", handlemetric.Handler)
+	// Сохранение метрики по URL
+	router.Post("/update/{type}/{name}/{value}", handlemetric.URLHandler)
 	// Получение всех метрик
 	router.Get("/", getmetrics.Handler)
 	// Получение отдельной метрики
-	router.Get("/value/{type}/{name}", getmetric.Handler)
+	router.Get("/value/{type}/{name}", getmetric.URLHandler)
+
+	router.Group(func(r chi.Router) {
+		// Устанавилваем мидлваре с логированием запросов
+		r.Use(middlewares.JSONHeaders)
+		// Сохранение метрики с помощью JSON тела
+		r.Post("/update", handlemetric.JSONHandler)
+		// Получение отдельной метрики
+		r.Post("/value", getmetric.JSONHandler)
+	})
 	return router
 }

@@ -28,17 +28,15 @@ func NewCollection() *Type {
 func CollectProcess(ctx context.Context) {
 	log.Printf("Collect metrics process starts. Period is %d mseconds\n", config.Params.PollInterval)
 	for {
-		stats := runtime.MemStats{}
-		runtime.ReadMemStats(&stats)
-		Collection.Collect(stats)
 		// Ловим закрытие контекста, чтобы завершить обработку
 		select {
+		case <-time.After(config.Params.PollInterval):
+			stats := runtime.MemStats{}
+			runtime.ReadMemStats(&stats)
+			Collection.Collect(stats)
 		case <-ctx.Done():
 			log.Println("Collect metrics process stopped")
 			return
-		default:
-			//continue
 		}
-		time.Sleep(config.Params.PollInterval)
 	}
 }

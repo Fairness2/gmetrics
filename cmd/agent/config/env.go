@@ -18,8 +18,8 @@ type CliConfig struct {
 // Params конфигурация приложения
 var Params *CliConfig
 
-// InitializeNewCliConfig инициализация конфигурации приложения
-func InitializeNewCliConfig() *CliConfig {
+// InitializeDefaultConfig инициализация конфигурации приложения
+func InitializeDefaultConfig() *CliConfig {
 	return &CliConfig{
 		PollInterval:   DefaultPollInterval,
 		ReportInterval: DefaultReportInterval,

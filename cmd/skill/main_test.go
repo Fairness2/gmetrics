@@ -29,6 +29,7 @@ func TestWebhook(t *testing.T) {
 	testCases := []struct {
 		name         string
 		method       string
+		body         string // добавляем тело запроса в табличные тесты
 		expectedCode int
 		expectedBody string
 	}{
@@ -40,7 +41,21 @@ func TestWebhook(t *testing.T) {
 		},
 		{name: "sending_using_PUT", method: http.MethodPut, expectedCode: http.StatusMethodNotAllowed, expectedBody: ""},
 		{name: "sending_using_DELETE", method: http.MethodDelete, expectedCode: http.StatusMethodNotAllowed, expectedBody: ""},
-		{name: "sending_using_POST", method: http.MethodPost, expectedCode: http.StatusOK, expectedBody: successBody},
+		{name: "method_post_without_body", method: http.MethodPost, expectedCode: http.StatusInternalServerError, expectedBody: ""},
+		{
+			name:         "method_post_unsupported_type",
+			method:       http.MethodPost,
+			expectedCode: http.StatusUnprocessableEntity,
+			expectedBody: "",
+			body:         `{"request": {"type": "idunno", "command": "do something"}, "version": "1.0"}`,
+		},
+		{
+			name:         "method_post_success",
+			method:       http.MethodPost,
+			body:         `{"request": {"type": "SimpleUtterance", "command": "sudo do something"}, "version": "1.0"}`,
+			expectedCode: http.StatusOK,
+			expectedBody: successBody,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -50,6 +65,11 @@ func TestWebhook(t *testing.T) {
 			req := resty.New().R()
 			req.Method = tc.method
 			req.URL = srv.URL
+
+			if len(tc.body) > 0 {
+				req.SetHeader("Content-Type", "application/json")
+				req.SetBody(tc.body)
+			}
 
 			resp, err := req.Send()
 			assert.NoError(t, err, "error making HTTP request")

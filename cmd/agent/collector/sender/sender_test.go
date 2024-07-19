@@ -97,7 +97,7 @@ func TestSendMetric(t *testing.T) {
 			expectedError: true,
 		},
 	}
-	config.Params = config.InitializeNewCliConfig()
+	config.Params = config.InitializeDefaultConfig()
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

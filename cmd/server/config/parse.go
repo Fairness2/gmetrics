@@ -9,7 +9,7 @@ import (
 // Parse инициализирует новую консольную конфигурацию, обрабатывает аргументы командной строки
 func Parse() (*CliConfig, error) {
 	// Регистрируем новое хранилище
-	cnf := InitializeNewCliConfig()
+	cnf := InitializeDefaultConfig()
 	// Заполняем конфигурацию из параметров командной строки
 	err := parseFromCli(cnf)
 	if err != nil {
