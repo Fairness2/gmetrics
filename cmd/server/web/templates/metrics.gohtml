@@ -1,0 +1,16 @@
+{{define "content"}}<!-- Определение шаблона content -->
+<h2>Gauges:</h2>
+<ul>
+    {{range .GaugeList}}
+    <li>{{.Name}}</li>
+    <li>{{.Value}}</li>
+    {{end}}
+</ul>
+<h2>Counters:</h2>
+<ul>
+    {{range .CounterList}}
+        <li>{{.Name}}</li>
+        <li>{{.Value}}</li>
+    {{end}}
+</ul>
+{{end}}
