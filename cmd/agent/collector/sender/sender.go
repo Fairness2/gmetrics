@@ -29,7 +29,8 @@ func New(mCollection *collection.Type) *Client {
 // PeriodicSender Циклическая отправка данных
 func (c *Client) PeriodicSender(ctx context.Context) {
 	log.Println("Starting periodic sender")
-	// В первый раз отправляем метрики сразу же
+	// В первый раз отправляем метрики через одну секунду, чтобы дать собрать метрики
+	<-time.After(1 * time.Second)
 	c.sendMetrics()
 	for {
 		// Ловим закрытие контекста, чтобы завершить обработку
