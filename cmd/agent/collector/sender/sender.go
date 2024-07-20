@@ -7,9 +7,9 @@ import (
 	"gmetrics/cmd/agent/collector/collection"
 	"gmetrics/cmd/agent/config"
 	"gmetrics/internal/metrics"
+	"gmetrics/internal/payload"
 	"log"
 	"net/http"
-	"net/url"
 	"time"
 )
 
@@ -29,6 +29,8 @@ func New(mCollection *collection.Type) *Client {
 // PeriodicSender Циклическая отправка данных
 func (c *Client) PeriodicSender(ctx context.Context) {
 	log.Println("Starting periodic sender")
+	// В первый раз отправляем метрики сразу же
+	c.sendMetrics()
 	for {
 		// Ловим закрытие контекста, чтобы завершить обработку
 		select {
@@ -44,23 +46,35 @@ func (c *Client) PeriodicSender(ctx context.Context) {
 // sendMetrics Функция прохода по метрикам и запуск их отправки
 func (c *Client) sendMetrics() {
 	log.Println("Sending metrics")
+	// Блокируем коллекцию на изменения
 	c.metricsCollection.Lock()
 	defer c.metricsCollection.Unlock()
+
 	// Отправляем все собранные метрики
 	for name, value := range c.metricsCollection.Values {
 		switch value := value.(type) {
 		case metrics.Gauge:
-			metricValue := value.ToString()
+			metricValue := value.GetRaw()
+			body := payload.Metrics{
+				ID:    name,
+				MType: metrics.TypeGauge,
+				Value: &metricValue,
+			}
 			go func() {
-				err := c.sendMetric(metrics.TypeGauge, name, metricValue)
+				err := c.sendMetric(body)
 				if err != nil {
 					log.Println(err)
 				}
 			}()
 		case metrics.Counter:
-			metricValue := value.ToString()
+			metricValue := value.GetRaw()
+			body := payload.Metrics{
+				ID:    name,
+				MType: metrics.TypeCounter,
+				Delta: &metricValue,
+			}
 			go func() {
-				err := c.sendMetric(metrics.TypeCounter, name, metricValue)
+				err := c.sendMetric(body)
 				if err != nil {
 					log.Println(err)
 				}
@@ -68,9 +82,14 @@ func (c *Client) sendMetrics() {
 		}
 	}
 	// Отдельно отправляем каунт сбора метрик
-	pCnt := c.metricsCollection.PollCount.ToString()
+	pCnt := c.metricsCollection.PollCount.GetRaw()
+	body := payload.Metrics{
+		ID:    "PollCount",
+		MType: metrics.TypeCounter,
+		Delta: &pCnt,
+	}
 	go func() {
-		err := c.sendMetric(metrics.TypeCounter, "PollCount", pCnt)
+		err := c.sendMetric(body)
 		if err != nil {
 			log.Println(err)
 		}
@@ -80,27 +99,19 @@ func (c *Client) sendMetrics() {
 }
 
 // sendMetric Отправка метрики
-func (c *Client) sendMetric(mType string, name string, value string) error {
-
-	// TODO новый апи
-
-	log.Printf("Sending metric %s with value %s type %s\n", name, value, mType)
-	// urlTemplate Шаблон урл: http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
-	var urlUpdateTemplate = "%s/update/%s/%s/%s"
-	sType := url.QueryEscape(mType)
-	sName := url.QueryEscape(name)
-	sValue := url.QueryEscape(value)
-	sURL := fmt.Sprintf(urlUpdateTemplate, config.Params.ServerURL, sType, sName, sValue)
+func (c *Client) sendMetric(body payload.Metrics) error {
+	log.Printf("Sending metric %s with value %d, delta %d type %s\n", body.ID, body.Value, body.Delta, body.MType)
+	// urlTemplate Шаблон урл: http://<АДРЕС_СЕРВЕРА>/update
+	var urlUpdateTemplate = "%s/update"
+	sURL := fmt.Sprintf(urlUpdateTemplate, config.Params.ServerURL)
 	res, err := c.client.R().
-		SetHeader("Content-Type", "text/plain").
-		SetBody(nil).
+		SetHeader("Content-Type", "application/json").
+		SetBody(body).
 		Post(sURL)
-	// res, err := c.client.Post(sURL, "text/plain", nil)
-	log.Printf("Finish sending metric %s with value %s type %s\n", name, value, mType)
+	log.Printf("Finish sending metric %s with value %d delta %d type %s\n", body.ID, body.Value, body.Delta, body.MType)
 	if err != nil {
 		return err
 	}
-	// defer res.Body.Close()
 	if statusCode := res.StatusCode(); statusCode != http.StatusOK {
 		return fmt.Errorf("http status code %d", statusCode)
 	}

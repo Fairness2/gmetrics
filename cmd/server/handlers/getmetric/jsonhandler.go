@@ -59,6 +59,7 @@ func JSONHandler(response http.ResponseWriter, request *http.Request) {
 		helpers.SetHTTPError(response, http.StatusInternalServerError, helpers.GetErrorJSONBody(err.Error()))
 		return
 	}
+	response.WriteHeader(http.StatusOK)
 	_, err = response.Write(jsonResponse)
 	if err != nil {
 		logger.G.Error(err)

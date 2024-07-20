@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/go-chi/chi/v5"
+	cMiddleware "github.com/go-chi/chi/v5/middleware"
 	"gmetrics/cmd/server/config"
 	"gmetrics/cmd/server/handlers/getmetric"
 	"gmetrics/cmd/server/handlers/getmetrics"
@@ -49,7 +50,7 @@ func run() error {
 func getRouter() chi.Router {
 	router := chi.NewRouter()
 	// Устанавилваем мидлваре с логированием запросов
-	router.Use(logger.LogResponse, logger.LogRequests)
+	router.Use(cMiddleware.StripSlashes, logger.LogResponse, logger.LogRequests)
 	// Сохранение метрики по URL
 	router.Post("/update/{type}/{name}/{value}", handlemetric.URLHandler)
 	// Получение всех метрик
