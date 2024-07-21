@@ -1,7 +1,10 @@
 package sender
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	"gmetrics/cmd/agent/collector/collection"
@@ -105,10 +108,23 @@ func (c *Client) sendMetric(body payload.Metrics) error {
 	// urlTemplate Шаблон урл: http://<АДРЕС_СЕРВЕРА>/update
 	var urlUpdateTemplate = "%s/update"
 	sURL := fmt.Sprintf(urlUpdateTemplate, config.Params.ServerURL)
-	res, err := c.client.R().
-		SetHeader("Content-Type", "application/json").
-		SetBody(body).
-		Post(sURL)
+
+	client := c.client.R().SetHeader("Content-Type", "application/json")
+
+	// Пробуем сжать тело
+	compressedBody, err := c.compressBody(body)
+	if err != nil {
+		// Если не получилось, то ставим обычное боди
+		log.Println("Cant compress body", err)
+		client.SetBody(body)
+	} else {
+		// Если получилось, то ставим заголовок о методе кодировки и ставим закодированное тело
+		client.SetHeader("Content-Encoding", "gzip").
+			SetBody(compressedBody)
+	}
+
+	// Отправляем запрос
+	res, err := client.Post(sURL)
 	log.Printf("Finish sending metric %s with value %d delta %d type %s\n", body.ID, body.Value, body.Delta, body.MType)
 	if err != nil {
 		return err
@@ -120,9 +136,30 @@ func (c *Client) sendMetric(body payload.Metrics) error {
 	return nil
 }
 
-// NewSender starts the process of sending metrics by creating a new sender client and
-// launching a goroutine to execute the periodicSender function.
-func NewSender(coll *collection.Type) *Client {
-	client := New(coll)
-	return client
+// compressBody сжимаем данные в формат gzip
+func (c *Client) compressBody(body payload.Metrics) ([]byte, error) {
+	// Преобразовываем тело в строку джейсон
+	encodedBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Создаём буфер, в который запишем сжатое тело
+	// TODO Тут мы создаём новый врайтер на каждый запрос, для выделения памяти это не особо хорошо,
+	// TODO другой вариант создать его один раз в клиенте и использовать writer.Reset(&buf), но возникает проблема использования в нескольких потоках одновременно и нужно как то блокировать
+	// TODO Какой вариант предпочтительнее или есть ещё варианты?
+	var buf bytes.Buffer
+	writer, err := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
+	if err != nil {
+		return nil, err
+	}
+	_, err = writer.Write(encodedBody)
+	if err != nil {
+		return nil, err
+	}
+	err = writer.Close()
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

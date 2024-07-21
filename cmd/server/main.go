@@ -49,8 +49,14 @@ func run() error {
 // getRouter конфигурация роутинга приложение
 func getRouter() chi.Router {
 	router := chi.NewRouter()
-	// Устанавилваем мидлваре с логированием запросов
-	router.Use(cMiddleware.StripSlashes, logger.LogResponse, logger.LogRequests)
+	// Устанавилваем мидлваре
+	router.Use(
+		cMiddleware.StripSlashes,          // Убираем лишние слеши
+		logger.LogRequests,                // Логируем данные запроса
+		middlewares.GZIPCompressResponse,  // Сжимаем ответ TODO исключить для роутов, которые будут возвращать не application/json или text/html. Проверять в мидлваре или компрессоре может быть не эффективно,так как заголовок с контентом может быть поставлен позже записи контента
+		logger.LogResponse,                // Логируем данные ответа
+		middlewares.GZIPDecompressRequest, // Разжимаем тело ответа
+	)
 	// Сохранение метрики по URL
 	router.Post("/update/{type}/{name}/{value}", handlemetric.URLHandler)
 	// Получение всех метрик

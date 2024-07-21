@@ -30,6 +30,10 @@ func parseFromEnv(params *CliConfig) error {
 		params.Address = envAddr
 	}
 
+	logLevel := os.Getenv("LOG_LEVEL")
+	if logLevel != "" {
+		params.LogLevel = logLevel
+	}
 	return nil
 }
 
@@ -37,6 +41,7 @@ func parseFromEnv(params *CliConfig) error {
 func parseFromCli(cnf *CliConfig) error {
 	// Регистрируем флаги конфигурации
 	flag.StringVar(&cnf.Address, "a", DefaultServerURL, "address and port to run server")
+	flag.StringVar(&cnf.LogLevel, "ll", DefaultLogLevel, "level of logging")
 	// Парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse() // Сейчас будет выход из приложения, поэтому код ниже не будет исполнен, но может пригодиться в будущем, если поменять флаг выхода или будет несколько сетов
 	if !flag.Parsed() {

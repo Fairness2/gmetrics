@@ -37,7 +37,7 @@ func main() {
 	}() // Запускаем сборку данных
 
 	// Запускаем отправку данных
-	client := sender.NewSender(collection.Collection)
+	client := sender.New(collection.Collection)
 	log.Println("New sender client created")
 	go func() {
 		client.PeriodicSender(ctx)
