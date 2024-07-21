@@ -25,20 +25,20 @@ func (r *Reader) Close() error {
 	return r.cReader.Close()
 }
 
-// HttpWriter представляет собой средство записи HTTP-ответов, которое имплементирует ResponseWriter
+// HTTPWriter представляет собой средство записи HTTP-ответов, которое имплементирует ResponseWriter
 // и определяет io.WriteCloser для сжатия данных ответа.
-type HttpWriter struct {
+type HTTPWriter struct {
 	http.ResponseWriter
 	cWriter io.WriteCloser
 }
 
 // Write сжимает переданные данные
-func (hw *HttpWriter) Write(p []byte) (int, error) {
+func (hw *HTTPWriter) Write(p []byte) (int, error) {
 	return hw.cWriter.Write(p)
 }
 
 // Close закрывает врайтер сжатия данных и отчищает его буфер
-func (hw *HttpWriter) Close() error {
+func (hw *HTTPWriter) Close() error {
 	return hw.cWriter.Close()
 }
 
@@ -57,12 +57,12 @@ func NewGZIPReader(original io.ReadCloser) (*Reader, error) {
 }
 
 // NewGZIPHTTPWriter возвращает новый экземпляр HttpWriter, который использует gzip.Writer для сжатия данных из оригинального http.ResponseWriter
-func NewGZIPHTTPWriter(original http.ResponseWriter) (*HttpWriter, error) {
+func NewGZIPHTTPWriter(original http.ResponseWriter) (*HTTPWriter, error) {
 	writer, err := gzip.NewWriterLevel(original, gzip.BestSpeed)
 	if err != nil {
 		return nil, err
 	}
-	return &HttpWriter{
+	return &HTTPWriter{
 		ResponseWriter: original,
 		cWriter:        writer,
 	}, nil
