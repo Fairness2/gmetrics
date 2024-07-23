@@ -16,6 +16,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 )
 
@@ -26,7 +27,11 @@ func main() {
 		log.Fatal(err)
 	}
 	config.Params = cnf
-
+	ctx, cancel := context.WithCancel(context.Background()) // Контекст для правильной остановки синхронизации
+	defer func() {
+		logger.G.Info("Cancel context")
+		cancel()
+	}()
 	// Регистрируем прослушиватель для закрытия записи в файл
 	go func() {
 		stop := make(chan os.Signal, 1)
@@ -34,15 +39,15 @@ func main() {
 		<-stop
 		logger.G.Info("Stopping server")
 		manners.Close()
+		cancel()
 	}()
-
 	InitLogger(func() {
 		InitStore(func() {
 			if err := run(); err != nil { // Запускаем сервер
 				logger.G.Fatal(err)
 			}
-		})
-	})
+		}, ctx)
+	}, ctx)
 }
 
 // run запуск сервера
@@ -83,7 +88,8 @@ func getRouter() chi.Router {
 type next func()
 
 // InitStore устанавливаем глобальное хранилище метрик.
-func InitStore(n next) {
+func InitStore(n next, ctx context.Context) {
+	wg := sync.WaitGroup{} // Группа для синхронизации
 	//Если указан путь к файлу, то будет создано хранилище с сохранением в файл, иначе будет создано хранилище в памяти
 	if config.Params.FileStorage != "" {
 		logger.G.Info("Set file store")
@@ -98,16 +104,13 @@ func InitStore(n next) {
 			}
 		}()
 		metrics.MeStore = store
-		ctx, cancel := context.WithCancel(context.Background()) // Контекст для правильной остановки синхронизации
 		ctx = context.WithValue(ctx, contextkeys.SyncInterval, config.Params.StoreInterval)
-		defer func() {
-			logger.G.Info("Cancel context")
-			cancel()
-		}()
 		// Запускаем синхронизацию в файл
 		if !store.SyncMode {
+			wg.Add(1)
 			go func() {
 				store.Sync(ctx)
+				defer wg.Done()
 			}()
 		}
 	} else {
@@ -116,10 +119,11 @@ func InitStore(n next) {
 	}
 
 	n()
+	wg.Wait() // Ожидаем завершения всех горутин
 }
 
 // InitLogger инициализируем логер
-func InitLogger(n next) {
+func InitLogger(n next, ctx context.Context) {
 	lgr, err := logger.New(config.Params.LogLevel)
 	if err != nil {
 		log.Fatal(err)
