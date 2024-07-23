@@ -23,7 +23,7 @@ var DefaultServerURL = "localhost:8080"
 var DefaultLogLevel = zap.InfoLevel.String()
 
 // DefaultFilePath путь хранения метрик по умолчанию
-var DefaultFilePath = "" //"storage.json"
+var DefaultFilePath = "storage.json"
 
 // DefaultStoreInterval период сохранения метрик в файл по умолчанию
 var DefaultStoreInterval = 300 * time.Second

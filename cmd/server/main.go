@@ -14,6 +14,9 @@ import (
 	"gmetrics/internal/middlewares"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -96,6 +99,20 @@ func InitStore(n next) {
 				store.Sync(ctx)
 			}()
 		}
+
+		// Регистрируем прослушиватель для закрытия записи в файл
+		go func() {
+			stop := make(chan os.Signal, 1)
+			signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+			<-stop
+			logger.G.Info("Stopping file store")
+			cancel()
+			err := store.Close()
+			if err != nil {
+				logger.G.Error(err)
+			}
+			logger.G.Info("File store stop")
+		}()
 	} else {
 		logger.G.Info("Set in-memory store")
 		metrics.MeStore = metrics.NewMemStorage()
