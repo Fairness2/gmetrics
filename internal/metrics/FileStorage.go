@@ -3,9 +3,11 @@ package metrics
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"gmetrics/internal/contextkeys"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics/fileworker"
+	"io"
 	"os"
 	"time"
 )
@@ -81,8 +83,12 @@ func (storage *DurationFileStorage) AddCounter(name string, value Counter) {
 func NewFileStorage(filename string, restore bool, syncMode bool) (*DurationFileStorage, error) {
 	storage := NewMemStorage()
 	if restore {
+		// Восстанавливаем хранилище из файла, возвращаем ошибку если чтение вернуло ошибку не с типом несуществующего файла или пустого файла
 		if err := restoreFromFile(filename, storage); err != nil {
-			return nil, err
+			logger.G.Infow("Restore store failed", "filename", filename, "error", err)
+			if !errors.Is(err, os.ErrNotExist) && !errors.Is(err, io.EOF) {
+				return nil, err
+			}
 		}
 	}
 	writer, err := fileworker.NewWriter(filename)
