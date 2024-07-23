@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"github.com/go-chi/chi/v5"
 	cMiddleware "github.com/go-chi/chi/v5/middleware"
 	"gmetrics/cmd/server/config"
 	"gmetrics/cmd/server/handlers/getmetric"
 	"gmetrics/cmd/server/handlers/getmetrics"
 	"gmetrics/cmd/server/handlers/handlemetric"
+	"gmetrics/internal/contextkeys"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/middlewares"
@@ -31,13 +33,38 @@ func main() {
 	logger.G.Infow("Running server with configuration",
 		"address", cnf.Address,
 		"logLevel", cnf.LogLevel,
+		"fileStorage", cnf.FileStorage,
+		"restore", cnf.Restore,
+		"storeInterval", cnf.StoreInterval,
 	)
 	// Устанавливаем глобальное хранилище метрик
-	metrics.MeStore = metrics.NewMemStorage()
+	store, err := metrics.NewFileStorage(cnf.FileStorage, cnf.Restore, cnf.StoreInterval == 0)
+	if err != nil {
+		logger.G.Fatal(err)
+	}
+	defer func() {
+		logger.G.Info("Close storage")
+		defer store.Close()
+	}()
+	metrics.MeStore = store
+
+	ctx, cancel := context.WithCancel(context.Background()) // Контекст для правильной остановки синхронизации
+	ctx = context.WithValue(ctx, contextkeys.SyncInterval, cnf.StoreInterval)
+	defer func() {
+		logger.G.Info("Cancel context")
+		cancel()
+	}()
+	// Запускаем синхронизацию в файл
+	if !store.SyncMode {
+		go func() {
+			store.Sync(ctx)
+		}()
+	}
 
 	if err := run(); err != nil { // Запускаем сервер
-		log.Fatal(err)
+		logger.G.Fatal(err)
 	}
+	logger.G.Info("Stopping server")
 }
 
 // run запуск сервера
