@@ -10,6 +10,7 @@ require (
 )
 
 require (
+	github.com/braintree/manners v0.0.0-20160418043613-82a8879fc5fd // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

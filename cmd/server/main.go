@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/braintree/manners"
 	"github.com/go-chi/chi/v5"
 	cMiddleware "github.com/go-chi/chi/v5/middleware"
 	"gmetrics/cmd/server/config"
@@ -13,7 +14,6 @@ import (
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/middlewares"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -27,6 +27,15 @@ func main() {
 	}
 	config.Params = cnf
 
+	// Регистрируем прослушиватель для закрытия записи в файл
+	go func() {
+		stop := make(chan os.Signal, 1)
+		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+		<-stop
+		logger.G.Info("Stopping server")
+		manners.Close()
+	}()
+
 	InitLogger(func() {
 		InitStore(func() {
 			if err := run(); err != nil { // Запускаем сервер
@@ -39,7 +48,7 @@ func main() {
 // run запуск сервера
 func run() error {
 	logger.G.Infof("Running server on %s", config.Params.Address)
-	return http.ListenAndServe(config.Params.Address, getRouter())
+	return manners.ListenAndServe(config.Params.Address, getRouter())
 }
 
 // getRouter конфигурация роутинга приложение
@@ -84,7 +93,9 @@ func InitStore(n next) {
 		}
 		defer func() {
 			logger.G.Info("Close storage")
-			defer store.Close()
+			if dErr := store.FlushAndClose(); dErr != nil {
+				logger.G.Error(dErr)
+			}
 		}()
 		metrics.MeStore = store
 		ctx, cancel := context.WithCancel(context.Background()) // Контекст для правильной остановки синхронизации
@@ -99,20 +110,6 @@ func InitStore(n next) {
 				store.Sync(ctx)
 			}()
 		}
-
-		// Регистрируем прослушиватель для закрытия записи в файл
-		go func() {
-			stop := make(chan os.Signal, 1)
-			signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-			<-stop
-			logger.G.Info("Stopping file store")
-			cancel()
-			err := store.Close()
-			if err != nil {
-				logger.G.Error(err)
-			}
-			logger.G.Info("File store stop")
-		}()
 	} else {
 		logger.G.Info("Set in-memory store")
 		metrics.MeStore = metrics.NewMemStorage()

@@ -30,6 +30,7 @@ func (storage *DurationFileStorage) Flush() error {
 	return storage.writer.Write(storage.Storage)
 }
 
+// Sync синхронизация данных хранилища в файл по таймеру
 func (storage *DurationFileStorage) Sync(ctx context.Context) {
 	interval := ctx.Value(contextkeys.SyncInterval).(time.Duration)
 	logger.G.Infof("Sync metrics process starts. Period is %d seconds", interval/time.Second)
@@ -46,6 +47,7 @@ func (storage *DurationFileStorage) Sync(ctx context.Context) {
 			if err := storage.Flush(); err != nil {
 				logger.G.Error(err)
 			}
+			logger.G.Debug("Synced")
 			return
 		}
 	}
@@ -53,6 +55,14 @@ func (storage *DurationFileStorage) Sync(ctx context.Context) {
 
 // Close Закрытие писателя (файла)
 func (storage *DurationFileStorage) Close() error {
+	return storage.writer.Close()
+}
+
+// FlushAndClose синхронизация данных и закрытие писателя (файла)
+func (storage *DurationFileStorage) FlushAndClose() error {
+	if err := storage.Flush(); err != nil {
+		return err
+	}
 	return storage.writer.Close()
 }
 
