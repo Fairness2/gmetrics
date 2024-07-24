@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"github.com/braintree/manners"
+	"errors"
 	"github.com/go-chi/chi/v5"
 	cMiddleware "github.com/go-chi/chi/v5/middleware"
 	"gmetrics/cmd/server/config"
@@ -14,6 +14,7 @@ import (
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/middlewares"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -27,33 +28,64 @@ func main() {
 		log.Fatal(err)
 	}
 	config.Params = cnf
+
+	wg := sync.WaitGroup{} // Группа для синхронизации
+	defer func() {
+		wg.Wait() // Ожидаем завершения всех горутин перед завершением программы
+		logger.G.Info("End program")
+	}()
+
 	ctx, cancel := context.WithCancel(context.Background()) // Контекст для правильной остановки синхронизации
 	defer func() {
 		logger.G.Info("Cancel context")
 		cancel()
 	}()
-	// Регистрируем прослушиватель для закрытия записи в файл
+	// Регистрируем прослушиватель для закрытия записи в файл и завершения сервера
 	go func() {
 		stop := make(chan os.Signal, 1)
 		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 		<-stop
 		logger.G.Info("Stopping server")
-		manners.Close()
 		cancel()
 	}()
+
 	InitLogger(func() {
 		InitStore(func() {
-			if err := run(); err != nil { // Запускаем сервер
-				logger.G.Fatal(err)
+			if err := run(ctx, &wg); err != nil { // Запускаем сервер
+				logger.G.Error(err)
 			}
-		}, ctx)
+		}, ctx, &wg)
 	}, ctx)
 }
 
 // run запуск сервера
-func run() error {
+func run(ctx context.Context, wg *sync.WaitGroup) (err error) {
 	logger.G.Infof("Running server on %s", config.Params.Address)
-	return manners.ListenAndServe(config.Params.Address, getRouter())
+	server := http.Server{
+		Addr:    config.Params.Address,
+		Handler: getRouter(),
+	}
+	wg.Add(1)
+	go func() {
+		err = stopServer(&server, ctx, wg)
+	}()
+	err = server.ListenAndServe()
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	return nil
+}
+
+func stopServer(server *http.Server, ctx context.Context, wg *sync.WaitGroup) error {
+	<-ctx.Done()
+	// Заставляем завершиться сервер и ждём его завершения
+	err := server.Shutdown(ctx)
+	if err != nil {
+		logger.G.Errorf("Failed to shutdown server: %v", err)
+	}
+	logger.G.Info("Server stop")
+	wg.Done()
+	return err
 }
 
 // getRouter конфигурация роутинга приложение
@@ -88,8 +120,7 @@ func getRouter() chi.Router {
 type next func()
 
 // InitStore устанавливаем глобальное хранилище метрик.
-func InitStore(n next, ctx context.Context) {
-	wg := sync.WaitGroup{} // Группа для синхронизации
+func InitStore(n next, ctx context.Context, wg *sync.WaitGroup) {
 	//Если указан путь к файлу, то будет создано хранилище с сохранением в файл, иначе будет создано хранилище в памяти
 	if config.Params.FileStorage != "" {
 		logger.G.Info("Set file store")
@@ -119,7 +150,6 @@ func InitStore(n next, ctx context.Context) {
 	}
 
 	n()
-	wg.Wait() // Ожидаем завершения всех горутин
 }
 
 // InitLogger инициализируем логер
