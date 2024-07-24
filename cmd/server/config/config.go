@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"go.uber.org/zap"
 	"time"
 )
 
@@ -16,20 +15,22 @@ type CliConfig struct {
 	StoreInterval time.Duration `env:"STORE_INTERVAL"` // период сохранения метрик в файл; 0 - синхронный режим
 }
 
-// DefaultServerURL Url сервера получателя метрик по умолчанию
-var DefaultServerURL = "localhost:8080"
+const (
+	// DefaultServerURL Url сервера получателя метрик по умолчанию
+	DefaultServerURL = "localhost:8080"
 
-// DefaultLogLevel Уровень логирования по умолчанию
-var DefaultLogLevel = zap.InfoLevel.String()
+	// DefaultLogLevel Уровень логирования по умолчанию
+	DefaultLogLevel = "info"
 
-// DefaultFilePath путь хранения метрик по умолчанию
-var DefaultFilePath = "storage.json"
+	// DefaultFilePath путь хранения метрик по умолчанию
+	DefaultFilePath = "storage.json"
 
-// DefaultStoreInterval период сохранения метрик в файл по умолчанию
-var DefaultStoreInterval = 300 * time.Second
+	// DefaultStoreInterval период сохранения метрик в файл по умолчанию
+	DefaultStoreInterval = 300 * time.Second
 
-// DefaultRestore надобность загрузки старых данных из файла при включении
-var DefaultRestore = false
+	// DefaultRestore надобность загрузки старых данных из файла при включении
+	DefaultRestore = false
+)
 
 // Params конфигурация приложения
 var Params *CliConfig

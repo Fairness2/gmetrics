@@ -27,14 +27,16 @@ func InitializeDefaultConfig() *CliConfig {
 	}
 }
 
-// DefaultPollInterval Интервал между сборкой данных по умолчанию
-var DefaultPollInterval = 2 * time.Second
+const (
+	// DefaultPollInterval Интервал между сборкой данных по умолчанию
+	DefaultPollInterval = 2 * time.Second
 
-// DefaultReportInterval Интервал между отправкой данных по умолчанию
-var DefaultReportInterval = 10 * time.Second
+	// DefaultReportInterval Интервал между отправкой данных по умолчанию
+	DefaultReportInterval = 10 * time.Second
 
-// DefaultServerURL Url сервера получателя метрик по умолчанию
-var DefaultServerURL = "http://localhost:8080"
+	// DefaultServerURL Url сервера получателя метрик по умолчанию
+	DefaultServerURL = "http://localhost:8080"
+)
 
 // PrintConfig возвращает строку с информацией о текущей конфигурации сервера и интервалах сбора метрик и отправки метрик.
 // Server Address: <адрес сервера>
