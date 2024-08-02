@@ -4,30 +4,50 @@ import (
 	"bytes"
 	"compress/gzip"
 	"github.com/go-resty/resty/v2"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	store "gmetrics/internal/store/skill"
+	"gmetrics/internal/store/skill/mock"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
+func createMockStore(t *testing.T) *mock.MockStore {
+	// создадим конроллер моков и экземпляр мок-хранилища
+	ctrl := gomock.NewController(t)
+	s := mock.NewMockStore(ctrl)
+
+	// определим, какой результат будем получать от «хранилища»
+	messages := []store.Message{
+		{
+			Sender:  "411419e5-f5be-4cdb-83aa-2ca2b6648353",
+			Time:    time.Now(),
+			Payload: "Hello!",
+		},
+	}
+	// установим условие: при любом вызове метода ListMessages возвращать массив messages без ошибки
+	s.EXPECT().
+		ListMessages(gomock.Any(), gomock.Any()).
+		Return(messages, nil).
+		AnyTimes()
+
+	return s
+}
+
 func TestWebhook(t *testing.T) {
+	// создадим экземпляр приложения и передадим ему «хранилище»
+	appInstance := newApp(createMockStore(t))
 	// тип http.HandlerFunc реализует интерфейс http.Handler
 	// это поможет передать хендлер тестовому серверу
-	handler := http.HandlerFunc(webhook)
+	handler := http.HandlerFunc(appInstance.webhook)
 	// запускаем тестовый сервер, будет выбран первый свободный порт
 	srv := httptest.NewServer(handler)
 	// останавливаем сервер после завершения теста
 	defer srv.Close()
-
-	// ожидаемое содержимое тела ответа при успешном запросе
-	successBody := `{
-        "response": {
-            "text": "Извините, я пока ничего не умею"
-        },
-        "version": "1.0"
-    }`
 
 	// описываем набор данных: метод запроса, ожидаемый код ответа, ожидаемое тело
 	testCases := []struct {
@@ -56,9 +76,16 @@ func TestWebhook(t *testing.T) {
 		{
 			name:         "method_post_success",
 			method:       http.MethodPost,
+			body:         `{"request": {"type": "SimpleUtterance", "command": "sudo do something"}, "session": {"new": true, "user":{"user_id":"6C91DA5198D1758C6A9F63A7C5CDDF09359F683B13A18A151FBF4C8B092BB0C2","access_token":"AgAAAAAB4vpbAAApoR1oaCd5yR6eiXSHqOGT8dT"}}, "version": "1.0"}`,
+			expectedCode: http.StatusOK,
+			expectedBody: `Точное время .* часов, .* минут. Для вас 1 новых сообщений.`,
+		},
+		{
+			name:         "method_post_success_but_not_messages",
+			method:       http.MethodPost,
 			body:         `{"request": {"type": "SimpleUtterance", "command": "sudo do something"}, "version": "1.0"}`,
 			expectedCode: http.StatusOK,
-			expectedBody: successBody,
+			expectedBody: `Для вас 1 новых сообщений.`,
 		},
 	}
 
@@ -81,14 +108,16 @@ func TestWebhook(t *testing.T) {
 			assert.Equal(t, tc.expectedCode, resp.StatusCode(), "Response code didn't match expected")
 			// проверяем корректность полученного тела ответа, если мы его ожидаем
 			if tc.expectedBody != "" {
-				assert.JSONEq(t, tc.expectedBody, string(resp.Body()))
+				assert.Regexp(t, tc.expectedBody, string(resp.Body()))
 			}
 		})
 	}
 }
 
 func TestGzipCompression(t *testing.T) {
-	handler := Pipeline(http.HandlerFunc(webhook), gzipMiddleware)
+	// создадим экземпляр приложения и передадим ему «хранилище»
+	appInstance := newApp(createMockStore(t))
+	handler := Pipeline(http.HandlerFunc(appInstance.webhook), gzipMiddleware)
 
 	srv := httptest.NewServer(handler)
 	defer srv.Close()
