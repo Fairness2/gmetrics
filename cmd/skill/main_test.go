@@ -7,9 +7,9 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gmetrics/internal/middlewares"
 	store "gmetrics/internal/store/skill"
 	"gmetrics/internal/store/skill/mock"
-	"gmetrics/internal/middlewares"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -135,7 +135,7 @@ func TestGzipCompression(t *testing.T) {
 	// ожидаемое содержимое тела ответа при успешном запросе
 	successBody := `{
         "response": {
-            "text": "Извините, я пока ничего не умею"
+            "text": "Для вас 1 новых сообщений."
         },
         "version": "1.0"
     }`
