@@ -22,7 +22,7 @@ const (
 	DefaultRestore = false
 
 	// DefaultDatabaseDSN подключение к базе данных
-	DefaultDatabaseDSN = "postgresql://postgres:example@127.0.0.1:5432/gmetrics"
+	DefaultDatabaseDSN = "" //"postgresql://postgres:example@127.0.0.1:5432/gmetrics"
 )
 
 // CliConfig конфигурация сервера из командной строки

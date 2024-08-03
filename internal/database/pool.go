@@ -14,6 +14,10 @@ func NewPgDB(dsn string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Если дсн не передан, то просто возвращаем созданный пул, он не работоспособен
+	if dsn == "" {
+		return db, nil
+	}
 	// Сразу проверим работоспособность соединения
 	if err = db.Ping(); err != nil {
 		return nil, err
