@@ -66,6 +66,7 @@ func (c *Client) sendMetrics() {
 	// Блокируем коллекцию на изменения
 	c.metricsCollection.Lock()
 	defer c.metricsCollection.Unlock()
+	wg := sync.WaitGroup{}
 
 	// Отправляем все собранные метрики
 	for name, value := range c.metricsCollection.Values {
@@ -77,7 +78,9 @@ func (c *Client) sendMetrics() {
 				MType: metrics.TypeGauge,
 				Value: &metricValue,
 			}
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				err := c.sendMetric(body)
 				if err != nil {
 					log.Println(err)
@@ -90,7 +93,9 @@ func (c *Client) sendMetrics() {
 				MType: metrics.TypeCounter,
 				Delta: &metricValue,
 			}
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				err := c.sendMetric(body)
 				if err != nil {
 					log.Println(err)
@@ -105,13 +110,16 @@ func (c *Client) sendMetrics() {
 		MType: metrics.TypeCounter,
 		Delta: &pCnt,
 	}
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		err := c.sendMetric(body)
 		if err != nil {
 			log.Println(err)
 		}
 	}()
-
+	// Ждём завершения отправки всех метрик, чтобы сбросить каунтер
+	wg.Wait()
 	c.metricsCollection.ResetCounter()
 }
 
