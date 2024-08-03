@@ -20,6 +20,9 @@ const (
 
 	// DefaultRestore надобность загрузки старых данных из файла при включении
 	DefaultRestore = false
+
+	// DefaultDatabaseDSN подключение к базе данных
+	DefaultDatabaseDSN = "postgresql://postgres:example@127.0.0.1:5432/gmetrics"
 )
 
 // CliConfig конфигурация сервера из командной строки
@@ -30,6 +33,7 @@ type CliConfig struct {
 	FileStorage   string        `env:"FILE_STORAGE"`   // Путь к хранению файлов, если не указан, то будет создано обычное хранилище в памяти
 	Restore       bool          `env:"RESTORE"`        // Надобность загрузки старых данных из файла при включении
 	StoreInterval time.Duration `env:"STORE_INTERVAL"` // период сохранения метрик в файл; 0 - синхронный режим
+	DatabaseDSN   string        `env:"DATABASE_DSN"`   // подключение к базе данных
 }
 
 // Params конфигурация приложения
@@ -43,6 +47,7 @@ func InitializeDefaultConfig() *CliConfig {
 		FileStorage:   DefaultFilePath,
 		Restore:       DefaultRestore,
 		StoreInterval: DefaultStoreInterval,
+		DatabaseDSN:   DefaultDatabaseDSN,
 	}
 }
 

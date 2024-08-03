@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	logger "gmetrics/internal/logger/skill"
+	"gmetrics/internal/logger"
 	models "gmetrics/internal/models/skill"
 	store "gmetrics/internal/store/skill"
 	"go.uber.org/zap"

@@ -9,7 +9,9 @@ import (
 	"gmetrics/cmd/server/handlers/getmetric"
 	"gmetrics/cmd/server/handlers/getmetrics"
 	"gmetrics/cmd/server/handlers/handlemetric"
+	"gmetrics/cmd/server/handlers/ping"
 	"gmetrics/internal/contextkeys"
+	"gmetrics/internal/database"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/middlewares"
@@ -56,6 +58,14 @@ func runApplication(wg *sync.WaitGroup) error {
 		cancel()
 	}()
 	_, err := InitLogger()
+	if err != nil {
+		return err
+	}
+
+	// Вызываем функцию закрытия базы данных
+	defer closeDB()
+	// Инициализируем базу данных
+	err = initDB(ctx, wg)
 	if err != nil {
 		return err
 	}
@@ -132,6 +142,9 @@ func getRouter() chi.Router {
 	// Получение отдельной метрики
 	router.Get("/value/{type}/{name}", getmetric.URLHandler)
 
+	// проверка состояния соединения с базой данных
+	router.Get("/ping", ping.Handler)
+
 	router.Group(func(r chi.Router) {
 		// Устанавилваем мидлваре с логированием запросов
 		r.Use(middlewares.JSONHeaders)
@@ -185,4 +198,37 @@ func InitLogger() (*zap.SugaredLogger, error) {
 	)
 
 	return lgr, nil
+}
+
+// initDB инициализация подключения к бд
+func initDB(ctx context.Context, wg *sync.WaitGroup) error {
+	// Создание пула подключений к базе данных для приложения
+	var err error
+	database.DB, err = database.NewPgDB(config.Params.DatabaseDSN)
+	if err != nil {
+		return err
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-ctx.Done()
+		logger.Log.Info("Closing database connection for context")
+		err = database.DB.Close()
+		if err != nil {
+			logger.Log.Error(err)
+		}
+	}()
+	return nil
+}
+
+// closeDB закрытие базы данных
+func closeDB() {
+	logger.Log.Info("Closing database connection for defer")
+	if database.DB != nil {
+		err := database.DB.Close()
+		if err != nil {
+			logger.Log.Error(err)
+		}
+	}
 }

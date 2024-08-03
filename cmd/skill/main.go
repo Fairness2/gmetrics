@@ -3,10 +3,8 @@
 package main
 
 import (
-	"encoding/json"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/middlewares"
-	models "gmetrics/internal/models/skill"
 	"go.uber.org/zap"
 	"net/http"
 )
