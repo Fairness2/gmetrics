@@ -5,16 +5,6 @@ import (
 	"time"
 )
 
-// CliConfig конфигурация сервера из командной строки
-type CliConfig struct {
-	// Address адрес сервера
-	Address       string        `env:"ADDRESS"`
-	LogLevel      string        `env:"LOG_LEVEL"`      // Уровень логирования
-	FileStorage   string        `env:"FILE_STORAGE"`   // Путь к хранению файлов, если не указан, то будет создано обычное хранилище в памяти
-	Restore       bool          `env:"RESTORE"`        // Надобность загрузки старых данных из файла при включении
-	StoreInterval time.Duration `env:"STORE_INTERVAL"` // период сохранения метрик в файл; 0 - синхронный режим
-}
-
 const (
 	// DefaultServerURL Url сервера получателя метрик по умолчанию
 	DefaultServerURL = "localhost:8080"
@@ -31,6 +21,16 @@ const (
 	// DefaultRestore надобность загрузки старых данных из файла при включении
 	DefaultRestore = false
 )
+
+// CliConfig конфигурация сервера из командной строки
+type CliConfig struct {
+	// Address адрес сервера
+	Address       string        `env:"ADDRESS"`
+	LogLevel      string        `env:"LOG_LEVEL"`      // Уровень логирования
+	FileStorage   string        `env:"FILE_STORAGE"`   // Путь к хранению файлов, если не указан, то будет создано обычное хранилище в памяти
+	Restore       bool          `env:"RESTORE"`        // Надобность загрузки старых данных из файла при включении
+	StoreInterval time.Duration `env:"STORE_INTERVAL"` // период сохранения метрик в файл; 0 - синхронный режим
+}
 
 // Params конфигурация приложения
 var Params *CliConfig

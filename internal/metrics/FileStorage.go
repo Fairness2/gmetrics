@@ -15,7 +15,7 @@ import (
 // Writer интерфейс записывающего в файл типа
 type Writer interface {
 	Write(v any) error
-	Close() error
+	io.Closer
 }
 
 // DurationFileStorage хранилище с циклической записью в файл данных
@@ -33,21 +33,21 @@ func (storage *DurationFileStorage) Flush() error {
 // Sync синхронизация данных хранилища в файл по таймеру
 func (storage *DurationFileStorage) Sync(ctx context.Context) {
 	interval := ctx.Value(contextkeys.SyncInterval).(time.Duration)
-	logger.G.Infof("Sync metrics process starts. Period is %d seconds", interval/time.Second)
+	logger.Log.Infof("Sync metrics process starts. Period is %d seconds", interval/time.Second)
 	for {
 		// Ловим закрытие контекста, чтобы завершить обработку
 		select {
 		case <-time.After(interval):
-			logger.G.Debug("Sync metrics")
+			logger.Log.Debug("Sync metrics")
 			if err := storage.Flush(); err != nil {
-				logger.G.Error(err)
+				logger.Log.Error(err)
 			}
 		case <-ctx.Done():
-			logger.G.Debug("Sync metrics before end")
+			logger.Log.Debug("Sync metrics before end")
 			if err := storage.Flush(); err != nil {
-				logger.G.Error(err)
+				logger.Log.Error(err)
 			}
-			logger.G.Debug("Synced")
+			logger.Log.Debug("Synced")
 			return
 		}
 	}
@@ -71,7 +71,7 @@ func (storage *DurationFileStorage) SetGauge(name string, value Gauge) {
 	storage.Storage.SetGauge(name, value)
 	if storage.SyncMode {
 		if err := storage.Flush(); err != nil {
-			logger.G.Error(err)
+			logger.Log.Error(err)
 		}
 	}
 
@@ -82,7 +82,7 @@ func (storage *DurationFileStorage) AddCounter(name string, value Counter) {
 	storage.Storage.AddCounter(name, value)
 	if storage.SyncMode {
 		if err := storage.Flush(); err != nil {
-			logger.G.Error(err)
+			logger.Log.Error(err)
 		}
 	}
 }
@@ -95,7 +95,7 @@ func NewFileStorage(filename string, restore bool, syncMode bool) (*DurationFile
 	if restore {
 		// Восстанавливаем хранилище из файла, возвращаем ошибку если чтение вернуло ошибку не с типом несуществующего файла или пустого файла
 		if err := restoreFromFile(filename, storage); err != nil {
-			logger.G.Infow("Restore store failed", "filename", filename, "error", err)
+			logger.Log.Infow("Restore store failed", "filename", filename, "error", err)
 			if !errors.Is(err, os.ErrNotExist) && !errors.Is(err, io.EOF) {
 				return nil, err
 			}

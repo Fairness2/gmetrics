@@ -5,6 +5,17 @@ import (
 	"time"
 )
 
+const (
+	// DefaultPollInterval Интервал между сборкой данных по умолчанию
+	DefaultPollInterval = 2 * time.Second
+
+	// DefaultReportInterval Интервал между отправкой данных по умолчанию
+	DefaultReportInterval = 10 * time.Second
+
+	// DefaultServerURL Url сервера получателя метрик по умолчанию
+	DefaultServerURL = "http://localhost:8080"
+)
+
 // CliConfig конфигурация клиента из командной строки
 type CliConfig struct {
 	// PollInterval Интервал между сборкой данных
@@ -26,17 +37,6 @@ func InitializeDefaultConfig() *CliConfig {
 		ServerURL:      DefaultServerURL,
 	}
 }
-
-const (
-	// DefaultPollInterval Интервал между сборкой данных по умолчанию
-	DefaultPollInterval = 2 * time.Second
-
-	// DefaultReportInterval Интервал между отправкой данных по умолчанию
-	DefaultReportInterval = 10 * time.Second
-
-	// DefaultServerURL Url сервера получателя метрик по умолчанию
-	DefaultServerURL = "http://localhost:8080"
-)
 
 // PrintConfig возвращает строку с информацией о текущей конфигурации сервера и интервалах сбора метрик и отправки метрик.
 // Server Address: <адрес сервера>

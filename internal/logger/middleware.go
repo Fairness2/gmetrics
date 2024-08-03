@@ -9,17 +9,23 @@ import (
 // LogRequests мидлеваре, которое регистрирует данные запроса
 // Функция регистрирует метод, путь и продолжительность каждого запроса
 func LogRequests(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		start := time.Now()
+		newWriter := &responseWriterWithLogging{
+			ResponseWriter: response,
+			data:           new(responseData),
+		}
 		// Регистрируем завершающую функцию, чтобы залогировать в любом случае
 		defer func() {
-			G.Infow("Got incoming HTTP request",
-				"method", r.Method,
-				"path", r.URL.Path,
+			Log.Infow("Got incoming HTTP request",
+				"method", request.Method,
+				"path", request.URL.Path,
 				"duration", time.Since(start),
+				"status", newWriter.data.status,
+				"bodySize", fmt.Sprintf("%d B", newWriter.data.size),
 			)
 		}()
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(newWriter, request)
 	})
 }
 
@@ -50,23 +56,4 @@ func (r *responseWriterWithLogging) Write(body []byte) (int, error) {
 func (r *responseWriterWithLogging) WriteHeader(statusCode int) {
 	r.data.status = statusCode
 	r.ResponseWriter.WriteHeader(statusCode)
-}
-
-// LogResponse мидлеваре, которое регистрирует данные ответа
-// Функция регистрирует размер тела и статус ответа
-func LogResponse(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-		newWriter := &responseWriterWithLogging{
-			ResponseWriter: response,
-			data:           new(responseData),
-		}
-		// Регистрируем завершающую функцию, чтобы залогировать в любом случае
-		defer func() {
-			G.Infow("Sent HTTP response",
-				"status", newWriter.data.status,
-				"bodySize", fmt.Sprintf("%d B", newWriter.data.size),
-			)
-		}()
-		next.ServeHTTP(newWriter, request)
-	})
 }

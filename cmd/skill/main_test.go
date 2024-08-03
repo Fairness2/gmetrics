@@ -6,6 +6,7 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gmetrics/internal/middlewares"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -88,7 +89,8 @@ func TestWebhook(t *testing.T) {
 }
 
 func TestGzipCompression(t *testing.T) {
-	handler := Pipeline(http.HandlerFunc(webhook), gzipMiddleware)
+	handler := Pipeline(http.HandlerFunc(webhook), middlewares.GZIPCompressResponse,
+		middlewares.GZIPDecompressRequest)
 
 	srv := httptest.NewServer(handler)
 	defer srv.Close()
