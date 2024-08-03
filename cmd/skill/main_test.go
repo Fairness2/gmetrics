@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	store "gmetrics/internal/store/skill"
 	"gmetrics/internal/store/skill/mock"
+	"gmetrics/internal/middlewares"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -117,7 +118,8 @@ func TestWebhook(t *testing.T) {
 func TestGzipCompression(t *testing.T) {
 	// создадим экземпляр приложения и передадим ему «хранилище»
 	appInstance := newApp(createMockStore(t))
-	handler := Pipeline(http.HandlerFunc(appInstance.webhook), gzipMiddleware)
+	handler := Pipeline(http.HandlerFunc(appInstance.webhook), middlewares.GZIPCompressResponse,
+		middlewares.GZIPDecompressRequest)
 
 	srv := httptest.NewServer(handler)
 	defer srv.Close()
@@ -142,9 +144,9 @@ func TestGzipCompression(t *testing.T) {
 		buf := bytes.NewBuffer(nil)
 		zb := gzip.NewWriter(buf)
 		_, err := zb.Write([]byte(requestBody))
-		require.NoError(t, err)
+		require.NoError(t, err, "error creating gzip writer")
 		err = zb.Close()
-		require.NoError(t, err)
+		require.NoError(t, err, "error closing gzip writer")
 
 		r := httptest.NewRequest("POST", srv.URL, buf)
 		r.RequestURI = ""
@@ -152,14 +154,14 @@ func TestGzipCompression(t *testing.T) {
 		r.Header.Set("Accept-Encoding", "")
 
 		resp, err := http.DefaultClient.Do(r)
-		require.NoError(t, err)
-		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NoError(t, err, "error making HTTP request")
+		require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected HTTP status code")
 
 		defer resp.Body.Close()
 
 		b, err := io.ReadAll(resp.Body)
-		require.NoError(t, err)
-		require.JSONEq(t, successBody, string(b))
+		require.NoError(t, err, "error reading response body")
+		require.JSONEq(t, successBody, string(b), "unexpected response body")
 	})
 
 	t.Run("accepts_gzip", func(t *testing.T) {
@@ -169,17 +171,17 @@ func TestGzipCompression(t *testing.T) {
 		r.Header.Set("Accept-Encoding", "gzip")
 
 		resp, err := http.DefaultClient.Do(r)
-		require.NoError(t, err)
-		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NoError(t, err, "error making HTTP request")
+		require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected HTTP status code")
 
 		defer resp.Body.Close()
 
 		zr, err := gzip.NewReader(resp.Body)
-		require.NoError(t, err)
+		require.NoError(t, err, "error creating gzip reader")
 
 		b, err := io.ReadAll(zr)
-		require.NoError(t, err)
+		require.NoError(t, err, "error reading response body")
 
-		require.JSONEq(t, successBody, string(b))
+		require.JSONEq(t, successBody, string(b), "unexpected response body")
 	})
 }

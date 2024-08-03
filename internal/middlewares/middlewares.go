@@ -23,10 +23,10 @@ func GZIPDecompressRequest(next http.Handler) http.Handler {
 		// Если указано сжатие тела в gzip, то заменяем тело на разжатое
 		if r.Header.Get("Content-Encoding") == "gzip" {
 			reader, err := compress.NewGZIPReader(r.Body)
-			logger.G.Debugw("Content encoded", "type", "gzip")
+			logger.Log.Debugw("Content encoded", "type", "gzip")
 			if err != nil {
 				// Если ошибка создания читателя, то отправляем ошибку сервера
-				logger.G.Error(err)
+				logger.Log.Error(err)
 				helpers.SetHTTPError(w, http.StatusInternalServerError, []byte(err.Error()))
 				return
 			}
@@ -43,10 +43,10 @@ func GZIPCompressResponse(next http.Handler) http.Handler {
 		newWriter := w
 		// Если доступно сжатие, то заменяем писателя на сжимающего и проставляем заголовок, что тело сжато
 		if header := r.Header.Get("Accept-Encoding"); strings.Contains(header, "gzip") {
-			logger.G.Debugw("Allowed content encoding", "type", "gzip")
+			logger.Log.Debugw("Allowed content encoding", "type", "gzip")
 			writer, err := compress.NewGZIPHTTPWriter(w)
 			if err != nil {
-				logger.G.Error(err)
+				logger.Log.Error(err)
 			} else {
 				defer writer.Close()
 				writer.Header().Set("Content-Encoding", "gzip")

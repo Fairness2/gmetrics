@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 )
 
 func main() {
@@ -26,7 +25,7 @@ func main() {
 	// Создаём новую коллекцию метрик и устанавливаем её глобально
 	collection.Collection = collection.NewCollection()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second) // Таймер, чтобы ограничить время работы агента, чтобы пройти тесты
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// Создаём группу ожидания на 2 потока: сборки данных и отправки
 	wg := sync.WaitGroup{}

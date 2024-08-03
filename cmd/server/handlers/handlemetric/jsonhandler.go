@@ -19,7 +19,7 @@ func JSONHandler(response http.ResponseWriter, request *http.Request) {
 	// Читаем тело запроса
 	rawBody, err := io.ReadAll(request.Body)
 	if err != nil {
-		logger.G.Error(err)
+		logger.Log.Error(err)
 		helpers.SetHTTPError(response, BadRequestError.HTTPStatus, helpers.GetErrorJSONBody(BadRequestError.Error()))
 		return
 	}
@@ -27,7 +27,7 @@ func JSONHandler(response http.ResponseWriter, request *http.Request) {
 	var body payload.Metrics
 	err = json.Unmarshal(rawBody, &body)
 	if err != nil {
-		logger.G.Infow("Bad request for update metric", "error", err, "body", string(rawBody))
+		logger.Log.Infow("Bad request for update metric", "error", err, "body", string(rawBody))
 		helpers.SetHTTPError(response, BadRequestError.HTTPStatus, helpers.GetErrorJSONBody(BadRequestError.Error()))
 		return
 	}
@@ -44,7 +44,7 @@ func JSONHandler(response http.ResponseWriter, request *http.Request) {
 	response.WriteHeader(http.StatusOK)
 	_, err = response.Write(rBody)
 	if err != nil {
-		logger.G.Error(err)
+		logger.Log.Error(err)
 	}
 }
 

@@ -5,43 +5,56 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	"gmetrics/cmd/agent/collector/collection"
 	"gmetrics/cmd/agent/config"
+	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/payload"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 )
 
 type Client struct {
 	client            *resty.Client // Клиент для подключения к серверам
 	metricsCollection *collection.Type
+	encodeWriterPool  sync.Pool
 }
 
 func New(mCollection *collection.Type) *Client {
 	c := &Client{
 		metricsCollection: mCollection,
 		client:            resty.New(),
-	}
+		encodeWriterPool: sync.Pool{
+			New: func() interface{} {
+				writer, err := gzip.NewWriterLevel(nil, gzip.BestSpeed)
+				if err != nil {
+					logger.Log.Error(err)
+					return nil
+				}
+				return writer
+			},
+		}}
 	return c
 }
 
 // PeriodicSender Циклическая отправка данных
 func (c *Client) PeriodicSender(ctx context.Context) {
 	log.Println("Starting periodic sender")
-	// В первый раз отправляем метрики через одну секунду, чтобы дать собрать метрики
-	<-time.After(1 * time.Second)
+	ticker := time.NewTicker(config.Params.ReportInterval)
 	c.sendMetrics()
 	for {
 		// Ловим закрытие контекста, чтобы завершить обработку
 		select {
-		case <-time.After(config.Params.ReportInterval):
+		case <-ticker.C:
 			c.sendMetrics()
 		case <-ctx.Done():
 			log.Println("Periodic sender stopped")
+			ticker.Stop()
 			return
 		}
 	}
@@ -53,6 +66,7 @@ func (c *Client) sendMetrics() {
 	// Блокируем коллекцию на изменения
 	c.metricsCollection.Lock()
 	defer c.metricsCollection.Unlock()
+	wg := sync.WaitGroup{}
 
 	// Отправляем все собранные метрики
 	for name, value := range c.metricsCollection.Values {
@@ -64,7 +78,9 @@ func (c *Client) sendMetrics() {
 				MType: metrics.TypeGauge,
 				Value: &metricValue,
 			}
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				err := c.sendMetric(body)
 				if err != nil {
 					log.Println(err)
@@ -77,7 +93,9 @@ func (c *Client) sendMetrics() {
 				MType: metrics.TypeCounter,
 				Delta: &metricValue,
 			}
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				err := c.sendMetric(body)
 				if err != nil {
 					log.Println(err)
@@ -92,13 +110,16 @@ func (c *Client) sendMetrics() {
 		MType: metrics.TypeCounter,
 		Delta: &pCnt,
 	}
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		err := c.sendMetric(body)
 		if err != nil {
 			log.Println(err)
 		}
 	}()
-
+	// Ждём завершения отправки всех метрик, чтобы сбросить каунтер
+	wg.Wait()
 	c.metricsCollection.ResetCounter()
 }
 
@@ -145,21 +166,25 @@ func (c *Client) compressBody(body payload.Metrics) ([]byte, error) {
 	}
 
 	// Создаём буфер, в который запишем сжатое тело
-	// TODO Тут мы создаём новый врайтер на каждый запрос, для выделения памяти это не особо хорошо,
-	// TODO другой вариант создать его один раз в клиенте и использовать writer.Reset(&buf), но возникает проблема использования в нескольких потоках одновременно и нужно как то блокировать
-	// TODO Какой вариант предпочтительнее или есть ещё варианты?
 	var buf bytes.Buffer
-	writer, err := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
-	if err != nil {
-		return nil, err
+	// Берём свободный врайтер для записи
+	writer := c.encodeWriterPool.Get().(*gzip.Writer)
+	// Если у нас он nil, то была ошибка
+	if writer == nil {
+		return nil, errors.New("writer is nil")
 	}
+	// Устанавливаем новый буфер во врайтер
+	writer.Reset(&buf)
+	// Кодируем данные
 	_, err = writer.Write(encodedBody)
 	if err != nil {
 		return nil, err
 	}
+	// Делаем закрытие врайтера, чтобы он прописал все нужные байты в конце. После Reset он откроется снова (Проверял,ставил последовательно закрытие, ресет с новым буфером и снова запись)
 	err = writer.Close()
 	if err != nil {
 		return nil, err
 	}
+
 	return buf.Bytes(), nil
 }

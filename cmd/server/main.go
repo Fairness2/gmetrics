@@ -13,6 +13,7 @@ import (
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/middlewares"
+	"go.uber.org/zap"
 	"log"
 	"net/http"
 	"os"
@@ -28,16 +29,22 @@ func main() {
 		log.Fatal(err)
 	}
 	config.Params = cnf
-
 	wg := sync.WaitGroup{} // Группа для синхронизации
-	defer func() {
-		wg.Wait() // Ожидаем завершения всех горутин перед завершением программы
-		logger.G.Info("End program")
-	}()
 
+	// стартуем приложение
+	if err = runApplication(&wg); err != nil {
+		logger.Log.Error(err)
+	}
+
+	wg.Wait() // Ожидаем завершения всех горутин перед завершением программы
+	logger.Log.Info("End program")
+}
+
+// runApplication производим старт приложения
+func runApplication(wg *sync.WaitGroup) error {
 	ctx, cancel := context.WithCancel(context.Background()) // Контекст для правильной остановки синхронизации
 	defer func() {
-		logger.G.Info("Cancel context")
+		logger.Log.Info("Cancel context")
 		cancel()
 	}()
 	// Регистрируем прослушиватель для закрытия записи в файл и завершения сервера
@@ -45,22 +52,41 @@ func main() {
 		stop := make(chan os.Signal, 1)
 		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 		<-stop
-		logger.G.Info("Stopping server")
+		logger.Log.Info("Stopping server")
 		cancel()
 	}()
+	_, err := InitLogger()
+	if err != nil {
+		return err
+	}
 
-	InitLogger(func() {
-		InitStore(func() {
-			if err := run(ctx, &wg); err != nil { // Запускаем сервер
-				logger.G.Error(err)
-			}
-		}, ctx, &wg)
-	}, ctx)
+	// Вызываем функцию закрытия
+	defer closeStorage()
+	// Инициализируем хранилище
+	InitStore(ctx, wg)
+
+	if err := run(ctx, wg); err != nil { // Запускаем сервер
+		return err
+	}
+
+	return nil
+}
+
+// closeStorage функция закрытия хранилища
+func closeStorage() {
+	st, ok := metrics.MeStore.(*metrics.DurationFileStorage)
+	if !ok {
+		return
+	}
+	logger.Log.Info("Close storage")
+	if dErr := st.FlushAndClose(); dErr != nil {
+		logger.Log.Error(dErr)
+	}
 }
 
 // run запуск сервера
 func run(ctx context.Context, wg *sync.WaitGroup) (err error) {
-	logger.G.Infof("Running server on %s", config.Params.Address)
+	logger.Log.Infof("Running server on %s", config.Params.Address)
 	server := http.Server{
 		Addr:    config.Params.Address,
 		Handler: getRouter(),
@@ -77,14 +103,15 @@ func run(ctx context.Context, wg *sync.WaitGroup) (err error) {
 }
 
 func stopServer(server *http.Server, ctx context.Context, wg *sync.WaitGroup) error {
+	defer wg.Done()
 	<-ctx.Done()
 	// Заставляем завершиться сервер и ждём его завершения
 	err := server.Shutdown(ctx)
 	if err != nil {
-		logger.G.Errorf("Failed to shutdown server: %v", err)
+		logger.Log.Errorf("Failed to shutdown server: %v", err)
 	}
-	logger.G.Info("Server stop")
-	wg.Done()
+	logger.Log.Info("Server stop")
+
 	return err
 }
 
@@ -96,7 +123,6 @@ func getRouter() chi.Router {
 		cMiddleware.StripSlashes,          // Убираем лишние слеши
 		logger.LogRequests,                // Логируем данные запроса
 		middlewares.GZIPCompressResponse,  // Сжимаем ответ TODO исключить для роутов, которые будут возвращать не application/json или text/html. Проверять в мидлваре или компрессоре может быть не эффективно,так как заголовок с контентом может быть поставлен позже записи контента
-		logger.LogResponse,                // Логируем данные ответа
 		middlewares.GZIPDecompressRequest, // Разжимаем тело ответа
 	)
 	// Сохранение метрики по URL
@@ -117,50 +143,40 @@ func getRouter() chi.Router {
 	return router
 }
 
-type next func()
-
 // InitStore устанавливаем глобальное хранилище метрик.
-func InitStore(n next, ctx context.Context, wg *sync.WaitGroup) {
-	//Если указан путь к файлу, то будет создано хранилище с сохранением в файл, иначе будет создано хранилище в памяти
+func InitStore(ctx context.Context, wg *sync.WaitGroup) {
+	// Если указан путь к файлу, то будет создано хранилище с сохранением в файл, иначе будет создано хранилище в памяти
 	if config.Params.FileStorage != "" {
-		logger.G.Info("Set file store")
+		logger.Log.Info("Set file store")
 		store, err := metrics.NewFileStorage(config.Params.FileStorage, config.Params.Restore, config.Params.StoreInterval == 0)
 		if err != nil {
-			logger.G.Fatal(err)
+			logger.Log.Fatal(err)
 		}
-		defer func() {
-			logger.G.Info("Close storage")
-			if dErr := store.FlushAndClose(); dErr != nil {
-				logger.G.Error(dErr)
-			}
-		}()
 		metrics.MeStore = store
 		ctx = context.WithValue(ctx, contextkeys.SyncInterval, config.Params.StoreInterval)
 		// Запускаем синхронизацию в файл
 		if !store.SyncMode {
 			wg.Add(1)
 			go func() {
-				store.Sync(ctx)
 				defer wg.Done()
+				store.Sync(ctx)
 			}()
 		}
 	} else {
-		logger.G.Info("Set in-memory store")
+		logger.Log.Info("Set in-memory store")
 		metrics.MeStore = metrics.NewMemStorage()
 	}
-
-	n()
 }
 
 // InitLogger инициализируем логер
-func InitLogger(n next, ctx context.Context) {
+func InitLogger() (*zap.SugaredLogger, error) {
 	lgr, err := logger.New(config.Params.LogLevel)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	logger.G = lgr
+	logger.Log = lgr
 	// Показываем конфигурацию сервера
-	logger.G.Infow("Running server with configuration",
+	logger.Log.Infow("Running server with configuration",
 		"address", config.Params.Address,
 		"logLevel", config.Params.LogLevel,
 		"fileStorage", config.Params.FileStorage,
@@ -168,5 +184,5 @@ func InitLogger(n next, ctx context.Context) {
 		"storeInterval", config.Params.StoreInterval,
 	)
 
-	n()
+	return lgr, nil
 }

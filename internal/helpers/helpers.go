@@ -16,7 +16,7 @@ func SetHTTPError(response http.ResponseWriter, status int, message []byte) {
 	response.WriteHeader(status)
 	_, err := response.Write(message) // TODO подумать, нужно ли
 	if err != nil {
-		logger.G.Error(err)
+		logger.Log.Error(err)
 	}
 }
 
@@ -28,7 +28,7 @@ func GetErrorJSONBody(message string) []byte {
 	}
 	jsonResponse, err := json.Marshal(responseBody)
 	if err != nil {
-		logger.G.Fatal(err)
+		logger.Log.Fatal(err)
 	}
 
 	return jsonResponse
