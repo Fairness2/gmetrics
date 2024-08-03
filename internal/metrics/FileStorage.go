@@ -34,16 +34,18 @@ func (storage *DurationFileStorage) Flush() error {
 func (storage *DurationFileStorage) Sync(ctx context.Context) {
 	interval := ctx.Value(contextkeys.SyncInterval).(time.Duration)
 	logger.Log.Infof("Sync metrics process starts. Period is %d seconds", interval/time.Second)
+	ticker := time.NewTicker(interval)
 	for {
 		// Ловим закрытие контекста, чтобы завершить обработку
 		select {
-		case <-time.After(interval):
+		case <-ticker.C:
 			logger.Log.Debug("Sync metrics")
 			if err := storage.Flush(); err != nil {
 				logger.Log.Error(err)
 			}
 		case <-ctx.Done():
 			logger.Log.Debug("Sync metrics before end")
+			ticker.Stop()
 			if err := storage.Flush(); err != nil {
 				logger.Log.Error(err)
 			}

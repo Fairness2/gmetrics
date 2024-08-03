@@ -27,14 +27,16 @@ func NewCollection() *Type {
 // for the duration defined by config.PollInterval.
 func CollectProcess(ctx context.Context) {
 	log.Printf("Collect metrics process starts. Period is %d mseconds\n", config.Params.PollInterval)
+	ticker := time.NewTicker(config.Params.PollInterval)
 	// Делаем первый сбор метрик сразу же
 	collect()
 	for {
 		// Ловим закрытие контекста, чтобы завершить обработку
 		select {
-		case <-time.After(config.Params.PollInterval):
+		case <-ticker.C:
 			collect()
 		case <-ctx.Done():
+			ticker.Stop()
 			log.Println("Collect metrics process stopped")
 			return
 		}

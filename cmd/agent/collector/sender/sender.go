@@ -45,14 +45,16 @@ func New(mCollection *collection.Type) *Client {
 // PeriodicSender Циклическая отправка данных
 func (c *Client) PeriodicSender(ctx context.Context) {
 	log.Println("Starting periodic sender")
+	ticker := time.NewTicker(config.Params.ReportInterval)
 	c.sendMetrics()
 	for {
 		// Ловим закрытие контекста, чтобы завершить обработку
 		select {
-		case <-time.After(config.Params.ReportInterval):
+		case <-ticker.C:
 			c.sendMetrics()
 		case <-ctx.Done():
 			log.Println("Periodic sender stopped")
+			ticker.Stop()
 			return
 		}
 	}
