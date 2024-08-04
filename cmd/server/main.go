@@ -159,7 +159,14 @@ func getRouter() chi.Router {
 // InitStore устанавливаем глобальное хранилище метрик.
 func InitStore(ctx context.Context, wg *sync.WaitGroup) {
 	// Если указан путь к файлу, то будет создано хранилище с сохранением в файл, иначе будет создано хранилище в памяти
-	if config.Params.FileStorage != "" {
+	if config.Params.DatabaseDSN != "" {
+		logger.Log.Info("Set database store")
+		store, err := metrics.NewDBStorage(ctx, database.DB)
+		if err != nil {
+			logger.Log.Fatal(err)
+		}
+		metrics.MeStore = store
+	} else if config.Params.FileStorage != "" {
 		logger.Log.Info("Set file store")
 		store, err := metrics.NewFileStorage(config.Params.FileStorage, config.Params.Restore, config.Params.StoreInterval == 0)
 		if err != nil {
@@ -195,6 +202,7 @@ func InitLogger() (*zap.SugaredLogger, error) {
 		"fileStorage", config.Params.FileStorage,
 		"restore", config.Params.Restore,
 		"storeInterval", config.Params.StoreInterval,
+		"databaseDSN", config.Params.DatabaseDSN,
 	)
 
 	return lgr, nil
@@ -219,6 +227,19 @@ func initDB(ctx context.Context, wg *sync.WaitGroup) error {
 			logger.Log.Error(err)
 		}
 	}()
+
+	if config.Params.DatabaseDSN != "" {
+		logger.Log.Info("Migrate migrations")
+		// Применим миграции
+		migrator, err := migrations()
+		if err != nil {
+			return err
+		}
+		if err = migrator.Migrate(database.DB); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

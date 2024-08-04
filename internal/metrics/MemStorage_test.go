@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -30,7 +31,8 @@ func TestSetGauge(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			memStore.SetGauge(tc.mName, tc.wantValue)
+			err := memStore.SetGauge(tc.mName, tc.wantValue)
+			require.NoError(t, err)
 			v, _ := memStore.GetGauge(tc.mName)
 			assert.Equal(t, tc.wantValue, v)
 		})
@@ -60,7 +62,8 @@ func TestAddCounter(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			memStore.AddCounter(tc.mName, tc.addValue)
+			err := memStore.AddCounter(tc.mName, tc.addValue)
+			require.NoError(t, err)
 			v, _ := memStore.GetCounter(tc.mName)
 			assert.Equal(t, tc.wantValue, v)
 		})
@@ -69,7 +72,7 @@ func TestAddCounter(t *testing.T) {
 
 func TestMemStorage_GetGauge(t *testing.T) {
 	memStore := NewMemStorage()
-	memStore.SetGauge("temp", 42.5)
+	_ = memStore.SetGauge("temp", 42.5)
 
 	testCases := []struct {
 		name      string
@@ -105,7 +108,7 @@ func TestMemStorage_GetGauge(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	memStore := NewMemStorage()
-	memStore.AddCounter("hits", 1)
+	_ = memStore.AddCounter("hits", 1)
 
 	testCases := []struct {
 		name      string

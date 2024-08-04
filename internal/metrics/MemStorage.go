@@ -19,13 +19,14 @@ type MemStorage struct {
 	storage.metrics[name] = value
 }*/
 
-func (storage *MemStorage) SetGauge(name string, value Gauge) {
+func (storage *MemStorage) SetGauge(name string, value Gauge) error {
 	storage.mutex.Lock()
 	defer storage.mutex.Unlock()
 	storage.Gauge[name] = value
+	return nil
 }
 
-func (storage *MemStorage) AddCounter(name string, value Counter) {
+func (storage *MemStorage) AddCounter(name string, value Counter) error {
 	storage.mutex.Lock()
 	defer storage.mutex.Unlock()
 	oldValue, ok := storage.Counter[name]
@@ -33,6 +34,7 @@ func (storage *MemStorage) AddCounter(name string, value Counter) {
 		value = oldValue.Add(value)
 	}
 	storage.Counter[name] = value
+	return nil
 }
 
 // Get Получение значения метрики из хранилища
@@ -67,14 +69,14 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
-func (storage *MemStorage) GetGauges() map[string]Gauge {
+func (storage *MemStorage) GetGauges() (map[string]Gauge, error) {
 	storage.mutex.RLock()
 	defer storage.mutex.RUnlock()
-	return storage.Gauge
+	return storage.Gauge, nil
 }
 
-func (storage *MemStorage) GetCounters() map[string]Counter {
+func (storage *MemStorage) GetCounters() (map[string]Counter, error) {
 	storage.mutex.RLock()
 	defer storage.mutex.RUnlock()
-	return storage.Counter
+	return storage.Counter, nil
 }
