@@ -75,6 +75,9 @@ func (storage *DBStorage) GetGauges() (map[string]Gauge, error) {
 	if err != nil {
 		return gauges, err
 	}
+	if err = rows.Err(); err != nil {
+		return gauges, err
+	}
 	var (
 		name  string
 		value Gauge
@@ -95,6 +98,9 @@ func (storage *DBStorage) GetCounters() (map[string]Counter, error) {
 	counters := make(map[string]Counter)
 	rows, err := storage.db.QueryContext(storage.storeCtx, "SELECT name, value FROM t_counter")
 	if err != nil {
+		return counters, err
+	}
+	if err = rows.Err(); err != nil {
 		return counters, err
 	}
 	var (
