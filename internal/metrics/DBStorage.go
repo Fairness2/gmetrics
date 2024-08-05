@@ -75,6 +75,12 @@ func (storage *DBStorage) GetGauges() (map[string]Gauge, error) {
 	if err != nil {
 		return gauges, err
 	}
+	// Закроем строки, чтобы освободить соединение
+	defer func() {
+		if rErr := rows.Close(); rErr == nil {
+			logger.Log.Error(rErr)
+		}
+	}()
 	if err = rows.Err(); err != nil {
 		return gauges, err
 	}
@@ -100,6 +106,12 @@ func (storage *DBStorage) GetCounters() (map[string]Counter, error) {
 	if err != nil {
 		return counters, err
 	}
+	// Закроем строки, чтобы освободить соединение
+	defer func() {
+		if rErr := rows.Close(); rErr == nil {
+			logger.Log.Error(rErr)
+		}
+	}()
 	if err = rows.Err(); err != nil {
 		return counters, err
 	}
