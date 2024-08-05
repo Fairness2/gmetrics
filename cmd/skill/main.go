@@ -1,8 +1,11 @@
 // пакеты исполняемых приложений должны называться main
+// В уроках в конце каждой главы перед инкрементом даётся пример по пройденному материалу на примере разработки навыка для алисы. Считается отдельным третьим приложением после агента и сервера
 package main
 
 import (
-	"log"
+	"gmetrics/internal/logger"
+	"gmetrics/internal/middlewares"
+	"go.uber.org/zap"
 	"net/http"
 )
 
@@ -13,8 +16,24 @@ func main() {
 	}
 }
 func run() error {
-	log.Println("Running server on", flagRunAddr)
-	return http.ListenAndServe(":8080", Pipeline(http.HandlerFunc(webhook), setHeaders))
+	// Создаём логер
+	lgr, err := logger.New(flagLogLevel)
+	if err != nil {
+		return err
+	}
+	logger.Log = lgr
+
+	// создаём экземпляр приложения, пока без внешней зависимости хранилища сообщений
+	appInstance := newApp(nil)
+
+	logger.Log.Info("Running server", zap.String("address", flagRunAddr))
+	// оборачиваем хендлер webhook в middleware с логированием
+	return http.ListenAndServe(":8080", Pipeline(http.HandlerFunc(appInstance.webhook),
+		logger.LogRequests,
+		setHeaders,
+		middlewares.GZIPCompressResponse,
+		middlewares.GZIPDecompressRequest,
+	))
 }
 
 type Middleware func(next http.Handler) http.Handler
@@ -35,25 +54,4 @@ func setHeaders(next http.Handler) http.Handler {
 
 		next.ServeHTTP(response, request)
 	})
-}
-
-func webhook(response http.ResponseWriter, request *http.Request) {
-	// Разрешаем только POST запросы
-	if request.Method != http.MethodPost {
-		response.WriteHeader(http.StatusMethodNotAllowed) // Возвращаем ответ со статусом 405, метод не разрешён
-		return
-	}
-	// Если метод OPTIONS, то отправляем пустой ответ с заголовком с разрешёнными методами
-	if request.Method == http.MethodOptions {
-		response.WriteHeader(http.StatusNoContent) // Возвращаем ответ со статусом 204, пустой ответ
-		return
-	}
-
-	_, _ = response.Write([]byte(`{
-        "response": {
-          "text": "Извините, я пока ничего не умею"
-        },
-        "version": "1.0"
-      }`))
-
 }
