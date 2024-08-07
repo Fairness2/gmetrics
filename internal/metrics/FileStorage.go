@@ -96,6 +96,34 @@ func (storage *DurationFileStorage) AddCounter(name string, value Counter) error
 	return nil
 }
 
+// SetGauges массовое обновление гауге
+func (storage *DurationFileStorage) SetGauges(gauges map[string]Gauge) error {
+	err := storage.Storage.SetGauges(gauges)
+	if err != nil {
+		return err
+	}
+	if storage.SyncMode {
+		if err = storage.Flush(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// AddCounters массовое обновление каунтер
+func (storage *DurationFileStorage) AddCounters(counters map[string]Counter) error {
+	err := storage.Storage.AddCounters(counters)
+	if err != nil {
+		return err
+	}
+	if storage.SyncMode {
+		if err = storage.Flush(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // NewFileStorage создание нового хранилища
 // filename - имя файла
 // restore - нужно ли загрузить инициализирующие данные из файла

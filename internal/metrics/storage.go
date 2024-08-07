@@ -8,6 +8,10 @@ type Storage interface {
 	AddCounter(name string, value Counter) error
 	GetGauge(name string) (Gauge, bool)
 	GetCounter(name string) (Counter, bool)
+	// SetGauges массовое обновление метрик Гауге
+	SetGauges(map[string]Gauge) error
+	// AddCounters массовое обновление метрик Каунтер
+	AddCounters(map[string]Counter) error
 }
 
 // MeStore Хранилище метрик в памяти.

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"gmetrics/internal/logger"
+	"time"
 )
 
 // DBStorage хранилище метрик в базе данных
@@ -25,12 +26,13 @@ func NewDBStorage(ctx context.Context, db *sql.DB) (*DBStorage, error) {
 }
 
 func (storage *DBStorage) SetGauge(name string, value Gauge) error {
-	_, err := storage.db.ExecContext(storage.storeCtx, "INSERT INTO t_gauge (name, value) VALUES ($1, $2) on conflict (name) do update set value = $2", name, value)
+	time.Now()
+	_, err := storage.db.ExecContext(storage.storeCtx, "INSERT INTO t_gauge (name, value) VALUES ($1, $2) on conflict (name) do update set value = $2, updated_at = $3", name, value, time.Now())
 	return err
 }
 
 func (storage *DBStorage) AddCounter(name string, value Counter) error {
-	_, err := storage.db.ExecContext(storage.storeCtx, "INSERT INTO t_counter (name, value) VALUES ($1, $2) on conflict (name) do update set value = t_counter.value + $2", name, value)
+	_, err := storage.db.ExecContext(storage.storeCtx, "INSERT INTO t_counter (name, value) VALUES ($1, $2) on conflict (name) do update set value = t_counter.value + $2, updated_at = $3", name, value, time.Now())
 	return err
 }
 
@@ -129,4 +131,56 @@ func (storage *DBStorage) GetCounters() (map[string]Counter, error) {
 	}
 
 	return counters, nil
+}
+
+// SetGauges массовое обновление гауге в базе
+func (storage *DBStorage) SetGauges(gauges map[string]Gauge) error {
+	nowTime := time.Now()
+	tx, err := storage.db.BeginTx(storage.storeCtx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	prepared, err := tx.PrepareContext(storage.storeCtx, "INSERT INTO t_gauge (name, value) VALUES ($1, $2) on conflict (name) do update set value = $2, updated_at = $3")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if pErr := prepared.Close(); pErr != nil {
+			logger.Log.Error(pErr)
+		}
+	}()
+
+	for name, gauge := range gauges {
+		if _, err = prepared.Exec(name, gauge, nowTime); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// AddCounters массовое обновление каунтер в базе
+func (storage *DBStorage) AddCounters(counters map[string]Counter) error {
+	nowTime := time.Now()
+	tx, err := storage.db.BeginTx(storage.storeCtx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	prepared, err := tx.PrepareContext(storage.storeCtx, "INSERT INTO t_counter (name, value) VALUES ($1, $2) on conflict (name) do update set value = t_counter.value + $2, updated_at = $3")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if pErr := prepared.Close(); pErr != nil {
+			logger.Log.Error(pErr)
+		}
+	}()
+
+	for name, counter := range counters {
+		if _, err = prepared.Exec(name, counter, nowTime); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }

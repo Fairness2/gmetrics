@@ -21,6 +21,30 @@ func migrations() (*migrator.Migrator, error) {
 					return nil
 				},
 			},
+			&migrator.Migration{
+				Name: "Add timestamps to metrics",
+				Func: func(tx *sql.Tx) error {
+					if _, err := tx.Exec("alter table public.t_counter add created_at timestamp without time zone default now();"); err != nil {
+						return err
+					}
+					if _, err := tx.Exec("alter table public.t_counter add updated_at timestamp without time zone default now();"); err != nil {
+						return err
+					}
+					return nil
+				},
+			},
+			&migrator.Migration{
+				Name: "Add timestamps to gauge",
+				Func: func(tx *sql.Tx) error {
+					if _, err := tx.Exec("alter table public.t_gauge add created_at timestamp without time zone default now();"); err != nil {
+						return err
+					}
+					if _, err := tx.Exec("alter table public.t_gauge add updated_at timestamp without time zone default now();"); err != nil {
+						return err
+					}
+					return nil
+				},
+			},
 		),
 	)
 

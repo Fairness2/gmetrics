@@ -3,10 +3,14 @@
 package main
 
 import (
+	"database/sql"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/middlewares"
+	"gmetrics/internal/store/skill/pg"
 	"go.uber.org/zap"
 	"net/http"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func main() {
@@ -23,8 +27,14 @@ func run() error {
 	}
 	logger.Log = lgr
 
+	// создаём соединение с СУБД PostgreSQL с помощью аргумента командной строки
+	conn, err := sql.Open("pgx", flagDatabaseURI)
+	if err != nil {
+		return err
+	}
+
 	// создаём экземпляр приложения, пока без внешней зависимости хранилища сообщений
-	appInstance := newApp(nil)
+	appInstance := newApp(pg.NewStore(conn))
 
 	logger.Log.Info("Running server", zap.String("address", flagRunAddr))
 	// оборачиваем хендлер webhook в middleware с логированием

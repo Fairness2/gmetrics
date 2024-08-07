@@ -107,3 +107,42 @@ func updateMetricByRequestBody(body payload.Metrics) (string, *UpdateMetricError
 
 	return responseMessage, nil
 }
+
+func updateMetricsByRequestBody(bodies []payload.Metrics) (string, *UpdateMetricError) {
+	var (
+		gauges   = make(map[string]metrics.Gauge)
+		counters = make(map[string]metrics.Counter)
+	)
+
+	for _, body := range bodies {
+		if body.ID == "" {
+			return "", BadRequestError
+		}
+
+		switch body.MType {
+		case metrics.TypeGauge:
+			if body.Value == nil {
+				return "", BadRequestError
+			}
+			gauges[body.ID] = metrics.Gauge(*body.Value)
+		case metrics.TypeCounter:
+			if body.Delta == nil {
+				return "", BadRequestError
+			}
+			counters[body.ID] = metrics.Counter(*body.Delta)
+		default:
+			return "", InvalidMetricTypeError
+		}
+	}
+
+	err := metrics.MeStore.SetGauges(gauges)
+	if err != nil {
+		return "", &UpdateMetricError{err, http.StatusInternalServerError}
+	}
+	err = metrics.MeStore.AddCounters(counters)
+	if err != nil {
+		return "", &UpdateMetricError{err, http.StatusInternalServerError}
+	}
+
+	return "Metrics successfully updated.", nil
+}

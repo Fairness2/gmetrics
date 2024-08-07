@@ -150,6 +150,8 @@ func getRouter() chi.Router {
 		r.Use(middlewares.JSONHeaders)
 		// Сохранение метрики с помощью JSON тела
 		r.Post("/update", handlemetric.JSONHandler)
+		// Сохранение метрик с помощью JSON тела
+		r.Post("/updates", handlemetric.JSONManyHandler)
 		// Получение отдельной метрики
 		r.Post("/value", getmetric.JSONHandler)
 	})

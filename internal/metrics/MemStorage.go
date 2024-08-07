@@ -80,3 +80,23 @@ func (storage *MemStorage) GetCounters() (map[string]Counter, error) {
 	defer storage.mutex.RUnlock()
 	return storage.Counter, nil
 }
+
+// SetGauges массовое обновление гауге в памяти
+func (storage *MemStorage) SetGauges(gauges map[string]Gauge) error {
+	for name, gauge := range gauges {
+		if err := storage.SetGauge(name, gauge); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// AddCounters массовое обновление каунтер  в памяти
+func (storage *MemStorage) AddCounters(counters map[string]Counter) error {
+	for name, counter := range counters {
+		if err := storage.AddCounter(name, counter); err != nil {
+			return err
+		}
+	}
+	return nil
+}
