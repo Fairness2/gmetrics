@@ -129,7 +129,14 @@ func updateMetricsByRequestBody(bodies []payload.Metrics) (string, *UpdateMetric
 			if body.Delta == nil {
 				return "", BadRequestError
 			}
-			counters[body.ID] = metrics.Counter(*body.Delta)
+			var newValue metrics.Counter
+			val, ok := counters[body.ID]
+			if ok {
+				newValue = val.Add(metrics.Counter(*body.Delta))
+			} else {
+				newValue = metrics.Counter(*body.Delta)
+			}
+			counters[body.ID] = newValue
 		default:
 			return "", InvalidMetricTypeError
 		}
