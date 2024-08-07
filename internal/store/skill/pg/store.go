@@ -27,19 +27,27 @@ func (s Store) Bootstrap(ctx context.Context) error {
 	}
 
 	// в случае неуспешного коммита все изменения транзакции будут отменены
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	// создаём таблицу пользователей и необходимые индексы
-	tx.ExecContext(ctx, `
+	_, err = tx.ExecContext(ctx, `
         CREATE TABLE users (
             id varchar(128) PRIMARY KEY,
             username varchar(128)
         )
     `)
-	tx.ExecContext(ctx, `CREATE UNIQUE INDEX sender_idx ON users (username)`)
+	if err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, `CREATE UNIQUE INDEX sender_idx ON users (username)`)
+	if err != nil {
+		return err
+	}
 
 	// создаём таблицу сообщений и необходимые индексы
-	tx.ExecContext(ctx, `
+	_, err = tx.ExecContext(ctx, `
         CREATE TABLE messages (
             id serial PRIMARY KEY,
             sender varchar(128),
@@ -49,7 +57,13 @@ func (s Store) Bootstrap(ctx context.Context) error {
             read_at timestamp with time zone DEFAULT NULL
         )
     `)
-	tx.ExecContext(ctx, `CREATE INDEX recipient_idx ON messages (recipient)`)
+	if err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, `CREATE INDEX recipient_idx ON messages (recipient)`)
+	if err != nil {
+		return err
+	}
 
 	// коммитим транзакцию
 	return tx.Commit()

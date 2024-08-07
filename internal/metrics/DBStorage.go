@@ -26,7 +26,6 @@ func NewDBStorage(ctx context.Context, db *sql.DB) (*DBStorage, error) {
 }
 
 func (storage *DBStorage) SetGauge(name string, value Gauge) error {
-	time.Now()
 	_, err := storage.db.ExecContext(storage.storeCtx, "INSERT INTO t_gauge (name, value) VALUES ($1, $2) on conflict (name) do update set value = $2, updated_at = $3", name, value, time.Now())
 	return err
 }
@@ -140,7 +139,11 @@ func (storage *DBStorage) SetGauges(gauges map[string]Gauge) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if tErr := tx.Rollback(); tErr != nil && tErr.Error() != "transaction has already been committed or rolled back" {
+			logger.Log.Error(tErr)
+		}
+	}()
 	prepared, err := tx.PrepareContext(storage.storeCtx, "INSERT INTO t_gauge (name, value) VALUES ($1, $2) on conflict (name) do update set value = $2, updated_at = $3")
 	if err != nil {
 		return err
@@ -166,7 +169,11 @@ func (storage *DBStorage) AddCounters(counters map[string]Counter) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if tErr := tx.Rollback(); tErr != nil && tErr.Error() != "transaction has already been committed or rolled back" {
+			logger.Log.Error(tErr)
+		}
+	}()
 	prepared, err := tx.PrepareContext(storage.storeCtx, "INSERT INTO t_counter (name, value) VALUES ($1, $2) on conflict (name) do update set value = t_counter.value + $2, updated_at = $3")
 	if err != nil {
 		return err

@@ -99,7 +99,7 @@ func (a *app) webhook(response http.ResponseWriter, request *http.Request) {
 			return
 		}
 
-		text = "Для вас нет новых сообщений."
+		//text = "Для вас нет новых сообщений."
 		if len(messages) < messageIndex {
 			// пользователь попросил прочитать сообщение, которого нет
 			text = "Такого сообщения не существует."
