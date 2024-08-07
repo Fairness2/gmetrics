@@ -140,7 +140,7 @@ func (storage *DBStorage) SetGauges(gauges map[string]Gauge) error {
 		return err
 	}
 	defer func() {
-		if tErr := tx.Rollback(); tErr != nil && tErr.Error() != "transaction has already been committed or rolled back" {
+		if tErr := tx.Rollback(); tErr != nil && tErr.Error() != "sql: transaction has already been committed or rolled back" {
 			logger.Log.Error(tErr)
 		}
 	}()
@@ -170,7 +170,7 @@ func (storage *DBStorage) AddCounters(counters map[string]Counter) error {
 		return err
 	}
 	defer func() {
-		if tErr := tx.Rollback(); tErr != nil && tErr.Error() != "transaction has already been committed or rolled back" {
+		if tErr := tx.Rollback(); tErr != nil && tErr.Error() != "sql: transaction has already been committed or rolled back" {
 			logger.Log.Error(tErr)
 		}
 	}()
