@@ -3,6 +3,7 @@ package getmetrics
 import (
 	"bytes"
 	"gmetrics/internal/helpers"
+	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
 	"html/template"
 	"net/http"
@@ -25,8 +26,14 @@ func init() {
 // - response: http.ResponseWriter объект, содержащий информацию о ответе HTTP.
 // - request: http.Request объект, содержащий информацию о запросе HTTP.
 func Handler(response http.ResponseWriter, request *http.Request) {
-	gauges := metrics.MeStore.GetGauges()
-	counters := metrics.MeStore.GetCounters()
+	gauges, errGauge := metrics.MeStore.GetGauges()
+	if errGauge != nil {
+		logger.Log.Error(errGauge)
+	}
+	counters, errCounter := metrics.MeStore.GetCounters()
+	if errGauge != nil {
+		logger.Log.Error(errCounter)
+	}
 
 	gaugeList := make([]ShowedMetrics, 0, len(gauges))
 	for name, value := range gauges {

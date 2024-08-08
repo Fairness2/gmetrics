@@ -9,7 +9,9 @@ import (
 	"gmetrics/cmd/server/handlers/getmetric"
 	"gmetrics/cmd/server/handlers/getmetrics"
 	"gmetrics/cmd/server/handlers/handlemetric"
+	"gmetrics/cmd/server/handlers/ping"
 	"gmetrics/internal/contextkeys"
+	"gmetrics/internal/database"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/middlewares"
@@ -56,6 +58,14 @@ func runApplication(wg *sync.WaitGroup) error {
 		cancel()
 	}()
 	_, err := InitLogger()
+	if err != nil {
+		return err
+	}
+
+	// Вызываем функцию закрытия базы данных
+	defer closeDB()
+	// Инициализируем базу данных
+	err = initDB(ctx, wg)
 	if err != nil {
 		return err
 	}
@@ -132,11 +142,16 @@ func getRouter() chi.Router {
 	// Получение отдельной метрики
 	router.Get("/value/{type}/{name}", getmetric.URLHandler)
 
+	// проверка состояния соединения с базой данных
+	router.Get("/ping", ping.Handler)
+
 	router.Group(func(r chi.Router) {
 		// Устанавилваем мидлваре с логированием запросов
 		r.Use(middlewares.JSONHeaders)
 		// Сохранение метрики с помощью JSON тела
 		r.Post("/update", handlemetric.JSONHandler)
+		// Сохранение метрик с помощью JSON тела
+		r.Post("/updates", handlemetric.JSONManyHandler)
 		// Получение отдельной метрики
 		r.Post("/value", getmetric.JSONHandler)
 	})
@@ -146,7 +161,14 @@ func getRouter() chi.Router {
 // InitStore устанавливаем глобальное хранилище метрик.
 func InitStore(ctx context.Context, wg *sync.WaitGroup) {
 	// Если указан путь к файлу, то будет создано хранилище с сохранением в файл, иначе будет создано хранилище в памяти
-	if config.Params.FileStorage != "" {
+	if config.Params.DatabaseDSN != "" {
+		logger.Log.Info("Set database store")
+		store, err := metrics.NewDBStorage(ctx, database.DB)
+		if err != nil {
+			logger.Log.Fatal(err)
+		}
+		metrics.MeStore = store
+	} else if config.Params.FileStorage != "" {
 		logger.Log.Info("Set file store")
 		store, err := metrics.NewFileStorage(config.Params.FileStorage, config.Params.Restore, config.Params.StoreInterval == 0)
 		if err != nil {
@@ -182,7 +204,54 @@ func InitLogger() (*zap.SugaredLogger, error) {
 		"fileStorage", config.Params.FileStorage,
 		"restore", config.Params.Restore,
 		"storeInterval", config.Params.StoreInterval,
+		"databaseDSN", config.Params.DatabaseDSN,
 	)
 
 	return lgr, nil
+}
+
+// initDB инициализация подключения к бд
+func initDB(ctx context.Context, wg *sync.WaitGroup) error {
+	// Создание пула подключений к базе данных для приложения
+	var err error
+	database.DB, err = database.NewPgDB(config.Params.DatabaseDSN)
+	if err != nil {
+		return err
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-ctx.Done()
+		logger.Log.Info("Closing database connection for context")
+		err = database.DB.Close()
+		if err != nil {
+			logger.Log.Error(err)
+		}
+	}()
+
+	if config.Params.DatabaseDSN != "" {
+		logger.Log.Info("Migrate migrations")
+		// Применим миграции
+		migrator, err := migrations()
+		if err != nil {
+			return err
+		}
+		if err = migrator.Migrate(database.DB); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// closeDB закрытие базы данных
+func closeDB() {
+	logger.Log.Info("Closing database connection for defer")
+	if database.DB != nil {
+		err := database.DB.Close()
+		if err != nil {
+			logger.Log.Error(err)
+		}
+	}
 }

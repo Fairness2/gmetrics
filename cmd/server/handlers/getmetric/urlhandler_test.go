@@ -131,8 +131,8 @@ func TestURLHandler(t *testing.T) {
 	router := chi.NewRouter()
 	router.Get("/value/{type}/{name}", func(writer http.ResponseWriter, request *http.Request) {
 		metrics.MeStore = metrics.NewMemStorage()
-		metrics.MeStore.SetGauge("someName", 56.67)
-		metrics.MeStore.AddCounter("someName", 5)
+		_ = metrics.MeStore.SetGauge("someName", 56.67)
+		_ = metrics.MeStore.AddCounter("someName", 5)
 		URLHandler(writer, request)
 	})
 	// запускаем тестовый сервер, будет выбран первый свободный порт

@@ -34,6 +34,7 @@ func parseFromEnv(params *CliConfig) error {
 		FileStorage   string `env:"FILE_STORAGE"`
 		Restore       bool   `env:"RESTORE"`
 		StoreInterval int    `env:"STORE_INTERVAL" envDefault:"-1"`
+		DatabaseDSN   string `env:"DATABASE_DSN"`
 	}{}
 	err := env.Parse(&cnf)
 	// Если ошибка, то считаем, что вывести конфигурацию из окружения не удалось
@@ -55,6 +56,9 @@ func parseFromEnv(params *CliConfig) error {
 	if cnf.StoreInterval >= 0 {
 		params.StoreInterval = time.Duration(cnf.StoreInterval) * time.Second
 	}
+	if cnf.DatabaseDSN != "" {
+		params.DatabaseDSN = cnf.DatabaseDSN
+	}
 	return nil
 }
 
@@ -64,6 +68,7 @@ func parseFromCli(cnf *CliConfig) (parseError error) {
 	flag.StringVar(&cnf.Address, "a", DefaultServerURL, "address and port to run server")
 	flag.StringVar(&cnf.LogLevel, "ll", DefaultLogLevel, "level of logging")
 	flag.StringVar(&cnf.FileStorage, "f", DefaultFilePath, "store file path")
+	flag.StringVar(&cnf.DatabaseDSN, "d", DefaultDatabaseDSN, "database connection")
 	flag.BoolVar(&cnf.Restore, "r", DefaultRestore, "need to restore")
 	flag.Func("i", "frequency of save metrics. 0 is sync mode", func(s string) error {
 		val, err := strconv.Atoi(s)

@@ -70,8 +70,8 @@ func TestJSONHandler(t *testing.T) {
 	router := chi.NewRouter()
 	router.Post("/value", func(writer http.ResponseWriter, request *http.Request) {
 		metrics.MeStore = metrics.NewMemStorage()
-		metrics.MeStore.SetGauge("someName", 56.67)
-		metrics.MeStore.AddCounter("someName", 5)
+		_ = metrics.MeStore.SetGauge("someName", 56.67)
+		_ = metrics.MeStore.AddCounter("someName", 5)
 		JSONHandler(writer, request)
 	})
 	// запускаем тестовый сервер, будет выбран первый свободный порт

@@ -66,68 +66,47 @@ func (c *Client) sendMetrics() {
 	// Блокируем коллекцию на изменения
 	c.metricsCollection.Lock()
 	defer c.metricsCollection.Unlock()
-	wg := sync.WaitGroup{}
+	body := make([]payload.Metrics, 0, len(c.metricsCollection.Values))
 
 	// Отправляем все собранные метрики
 	for name, value := range c.metricsCollection.Values {
 		switch value := value.(type) {
 		case metrics.Gauge:
 			metricValue := value.GetRaw()
-			body := payload.Metrics{
+			body = append(body, payload.Metrics{
 				ID:    name,
 				MType: metrics.TypeGauge,
 				Value: &metricValue,
-			}
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				err := c.sendMetric(body)
-				if err != nil {
-					log.Println(err)
-				}
-			}()
+			})
 		case metrics.Counter:
 			metricValue := value.GetRaw()
-			body := payload.Metrics{
+			body = append(body, payload.Metrics{
 				ID:    name,
 				MType: metrics.TypeCounter,
 				Delta: &metricValue,
-			}
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				err := c.sendMetric(body)
-				if err != nil {
-					log.Println(err)
-				}
-			}()
+			})
 		}
 	}
 	// Отдельно отправляем каунт сбора метрик
 	pCnt := c.metricsCollection.PollCount.GetRaw()
-	body := payload.Metrics{
+	body = append(body, payload.Metrics{
 		ID:    "PollCount",
 		MType: metrics.TypeCounter,
 		Delta: &pCnt,
+	})
+	// Отправляем метрики, но сбрасываем каунтер только при успешной отправке
+	if err := c.sendToServer(body); err != nil {
+		log.Println(err)
+		return
 	}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := c.sendMetric(body)
-		if err != nil {
-			log.Println(err)
-		}
-	}()
-	// Ждём завершения отправки всех метрик, чтобы сбросить каунтер
-	wg.Wait()
 	c.metricsCollection.ResetCounter()
 }
 
-// sendMetric Отправка метрики
-func (c *Client) sendMetric(body payload.Metrics) error {
-	log.Printf("Sending metric %s with value %d, delta %d type %s\n", body.ID, body.Value, body.Delta, body.MType)
+// sendToServer Отправка метрики
+func (c *Client) sendToServer(body []payload.Metrics) error {
+	log.Println("Sending metrics")
 	// urlTemplate Шаблон урл: http://<АДРЕС_СЕРВЕРА>/update
-	var urlUpdateTemplate = "%s/update"
+	var urlUpdateTemplate = "%s/updates"
 	sURL := fmt.Sprintf(urlUpdateTemplate, config.Params.ServerURL)
 
 	client := c.client.R().SetHeader("Content-Type", "application/json")
@@ -146,7 +125,7 @@ func (c *Client) sendMetric(body payload.Metrics) error {
 
 	// Отправляем запрос
 	res, err := client.Post(sURL)
-	log.Printf("Finish sending metric %s with value %d delta %d type %s\n", body.ID, body.Value, body.Delta, body.MType)
+	log.Println("Finish sending metrics")
 	if err != nil {
 		return err
 	}
@@ -158,7 +137,7 @@ func (c *Client) sendMetric(body payload.Metrics) error {
 }
 
 // compressBody сжимаем данные в формат gzip
-func (c *Client) compressBody(body payload.Metrics) ([]byte, error) {
+func (c *Client) compressBody(body []payload.Metrics) ([]byte, error) {
 	// Преобразовываем тело в строку джейсон
 	encodedBody, err := json.Marshal(body)
 	if err != nil {

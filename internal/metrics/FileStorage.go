@@ -69,24 +69,59 @@ func (storage *DurationFileStorage) FlushAndClose() error {
 }
 
 // SetGauge переопределённый метод с записью в файл в случае синхронного режима
-func (storage *DurationFileStorage) SetGauge(name string, value Gauge) {
-	storage.Storage.SetGauge(name, value)
+func (storage *DurationFileStorage) SetGauge(name string, value Gauge) error {
+	err := storage.Storage.SetGauge(name, value)
+	if err != nil {
+		return err
+	}
 	if storage.SyncMode {
-		if err := storage.Flush(); err != nil {
-			logger.Log.Error(err)
+		if err = storage.Flush(); err != nil {
+			return err
 		}
 	}
-
+	return nil
 }
 
 // AddCounter переопределённый метод с записью в файл в случае синхронного режима
-func (storage *DurationFileStorage) AddCounter(name string, value Counter) {
-	storage.Storage.AddCounter(name, value)
+func (storage *DurationFileStorage) AddCounter(name string, value Counter) error {
+	err := storage.Storage.AddCounter(name, value)
+	if err != nil {
+		return err
+	}
 	if storage.SyncMode {
-		if err := storage.Flush(); err != nil {
-			logger.Log.Error(err)
+		if err = storage.Flush(); err != nil {
+			return err
 		}
 	}
+	return nil
+}
+
+// SetGauges массовое обновление гауге
+func (storage *DurationFileStorage) SetGauges(gauges map[string]Gauge) error {
+	err := storage.Storage.SetGauges(gauges)
+	if err != nil {
+		return err
+	}
+	if storage.SyncMode {
+		if err = storage.Flush(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// AddCounters массовое обновление каунтер
+func (storage *DurationFileStorage) AddCounters(counters map[string]Counter) error {
+	err := storage.Storage.AddCounters(counters)
+	if err != nil {
+		return err
+	}
+	if storage.SyncMode {
+		if err = storage.Flush(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // NewFileStorage создание нового хранилища
