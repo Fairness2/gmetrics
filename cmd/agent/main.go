@@ -6,8 +6,10 @@ import (
 	"gmetrics/cmd/agent/collector/sender"
 	"gmetrics/cmd/agent/config"
 	"log"
+	"os"
+	"os/signal"
 	"sync"
-	"time"
+	"syscall"
 )
 
 func main() {
@@ -17,13 +19,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	config.SetGlobalConfig(cnf)
+	config.Params = cnf
 	log.Print(config.PrintConfig(cnf))
 
 	// Создаём новую коллекцию метрик и устанавливаем её глобально
 	collection.Collection = collection.NewCollection()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second) // Таймер, чтобы ограничить время работы агента, чтобы пройти тесты
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// Создаём группу ожидания на 2 потока: сборки данных и отправки
 	wg := sync.WaitGroup{}
@@ -34,25 +36,22 @@ func main() {
 	}() // Запускаем сборку данных
 
 	// Запускаем отправку данных
-	client := sender.NewSender(collection.Collection)
+	client := sender.New(collection.Collection)
 	log.Println("New sender client created")
 	go func() {
 		client.PeriodicSender(ctx)
 		defer wg.Done()
 	}()
-
-	// Бесконечный цикл со считыванием ввода консоли, чтобы программа работала пока нужно
-	/*for {
-		fmt.Println("Agent is running. Print C to finish agent")
-		var command string
-		_, err := fmt.Fscan(os.Stdin, &command)
-		if err != nil {
-			log.Println(err)
-		}
-		if command == "C" {
-			cancel()
-			break
-		}
-	}*/
+	// Ожидаем сигнала завершения Ctrl+C, чтобы корректно завершить работу
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case <-stop:
+		cancel()
+	case <-ctx.Done():
+		// continue
+	}
+	log.Println("Agent is stopping")
 	wg.Wait() // Ожидаем завершения всех горутин
+	log.Println("Agent stopped")
 }

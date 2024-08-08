@@ -44,7 +44,7 @@ func TestSetHTTPError(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			response := httptest.NewRecorder()
-			SetHTTPError(response, c.mockStatus, c.mockMessage)
+			SetHTTPError(response, c.mockStatus, []byte(c.mockMessage))
 			result := response.Result()
 			defer result.Body.Close()
 

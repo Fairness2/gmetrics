@@ -1,4 +1,4 @@
-package handlemetric
+package getmetric
 
 import (
 	"fmt"
@@ -22,39 +22,15 @@ func TestParseURL(t *testing.T) {
 	}{
 		{
 			name:      "valid_URL",
-			input:     "/update/metrictype/metricname/metricvalue",
+			input:     "/value/metrictype/metricname",
 			wantType:  "metrictype",
 			wantName:  "metricname",
-			wantValue: "metricvalue",
+			wantValue: "42",
 			wantErr:   false,
 		},
 		{
-			name:      "incomplete_URL",
-			input:     "/update/metrictype/metricname/",
-			wantType:  "",
-			wantName:  "",
-			wantValue: "",
-			wantErr:   true,
-		},
-		{
 			name:      "empty_section_URL",
-			input:     "/update/metrictype//metricvalue",
-			wantType:  "",
-			wantName:  "",
-			wantValue: "",
-			wantErr:   true,
-		},
-		{
-			name:      "all_empty_URL",
-			input:     "/update///",
-			wantType:  "",
-			wantName:  "",
-			wantValue: "",
-			wantErr:   true,
-		},
-		{
-			name:      "more_sections_URL",
-			input:     "/update/metrictype/metricname/metricvalue/extra",
+			input:     "/update/metrictype//",
 			wantType:  "",
 			wantName:  "",
 			wantValue: "",
@@ -67,7 +43,7 @@ func TestParseURL(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				router := chi.NewRouter()
 				router.Get("/update/{type}/{name}/{value}", func(w http.ResponseWriter, r *http.Request) {
-					gotType, gotName, gotValue, err := parseURL(r)
+					gotType, gotName, err := parseURL(r)
 
 					if tc.wantErr {
 						assert.Error(t, err, "Not error parsing URL")
@@ -75,7 +51,6 @@ func TestParseURL(t *testing.T) {
 						assert.NoError(t, err, "Unexpected error parsing URL")
 						assert.Equal(t, tc.wantType, gotType)
 						assert.Equal(t, tc.wantName, gotName)
-						assert.Equal(t, tc.wantValue, gotValue)
 					}
 				})
 				// запускаем тестовый сервер, будет выбран первый свободный порт
@@ -89,101 +64,96 @@ func TestParseURL(t *testing.T) {
 				req.URL = srv.URL + tc.input
 				_, err := req.Send()
 				assert.NoError(t, err, "Unexpected error while sending request")
-				/*if tc.wantErr {
-					assert.NotEqual(t, res.StatusCode(), http.StatusOK)
-				} else {
-					assert.Equal(t, res.StatusCode(), http.StatusOK)
-				}*/
 			})
 		})
 	}
 }
 
-func TestHandleMetric(t *testing.T) {
-	// urlTemplate Шаблон урл: http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
-	var urlUpdateTemplate = "/update/%s/%s/%s"
+func TestURLHandler(t *testing.T) {
+	// urlTemplate Шаблон урл: http://<АДРЕС_СЕРВЕРА>/value/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>
+	var urlUpdateTemplate = "/value/%s/%s"
 	tests := []struct {
 		name            string
 		sendURL         string
 		wantStatus      int
 		wantContentType string
+		wantValue       string
 	}{
 		{
-			name:            "wrong_URL",
-			sendURL:         "/update",
-			wantStatus:      http.StatusNotFound,
-			wantContentType: "application/json",
-		},
-		{
 			name:            "empty_type",
-			sendURL:         fmt.Sprintf(urlUpdateTemplate, "", "someName", "123"),
+			sendURL:         fmt.Sprintf(urlUpdateTemplate, "", "someName"),
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "application/json",
+			wantValue:       "",
 		},
 		{
 			name:            "empty_name",
-			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "", "123"),
+			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, ""),
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "application/json",
-		},
-		{
-			name:            "empty_value",
-			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "someName", ""),
-			wantStatus:      http.StatusNotFound,
-			wantContentType: "application/json",
+			wantValue:       "",
 		},
 		{
 			name:            "wrong_type",
-			sendURL:         fmt.Sprintf(urlUpdateTemplate, "aboba", "someName", "123"),
-			wantStatus:      http.StatusBadRequest,
+			sendURL:         fmt.Sprintf(urlUpdateTemplate, "aboba", "someName"),
+			wantStatus:      http.StatusNotFound,
 			wantContentType: "application/json",
 		},
 		{
-			name:            "wrong_value_gauge",
-			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "someName", "some"),
-			wantStatus:      http.StatusBadRequest,
-			wantContentType: "application/json",
-		},
-		{
-			name:            "wrong_value_count",
-			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeCounter, "someName", "some"),
-			wantStatus:      http.StatusBadRequest,
-			wantContentType: "application/json",
-		},
-		{
-			name:            "right_value_gauge",
-			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "someName", "56.78"),
+			name:            "not_empty_gauge",
+			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "someName"),
 			wantStatus:      http.StatusOK,
 			wantContentType: "application/json",
+			wantValue:       "56.67",
 		},
 		{
-			name:            "right_value_count",
-			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeCounter, "someName", "5"),
+			name:            "not_empty_count",
+			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeCounter, "someName"),
 			wantStatus:      http.StatusOK,
 			wantContentType: "application/json",
+			wantValue:       "5",
+		},
+		{
+			name:            "empty_gauge",
+			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeGauge, "someName1"),
+			wantStatus:      http.StatusNotFound,
+			wantContentType: "application/json",
+			wantValue:       "",
+		},
+		{
+			name:            "empty_count",
+			sendURL:         fmt.Sprintf(urlUpdateTemplate, metrics.TypeCounter, "someName1"),
+			wantStatus:      http.StatusNotFound,
+			wantContentType: "application/json",
+			wantValue:       "",
 		},
 	}
 	router := chi.NewRouter()
-
-	// Устанавливаем глобальное хранилище метрик
-	storage := metrics.NewMemStorage()
-	metrics.MeStore = storage
-
-	router.Post("/update/{type}/{name}/{value}", Handler)
+	router.Get("/value/{type}/{name}", func(writer http.ResponseWriter, request *http.Request) {
+		metrics.MeStore = metrics.NewMemStorage()
+		metrics.MeStore.SetGauge("someName", 56.67)
+		metrics.MeStore.AddCounter("someName", 5)
+		URLHandler(writer, request)
+	})
 	// запускаем тестовый сервер, будет выбран первый свободный порт
 	srv := httptest.NewServer(router)
 	// останавливаем сервер после завершения теста
+
 	defer srv.Close()
 	for _, test := range tests {
+
 		t.Run(test.name, func(t *testing.T) {
 
 			request := resty.New().R()
-			request.Method = http.MethodPost
+			request.Method = http.MethodGet
 			request.URL = srv.URL + test.sendURL
 
 			res, err := request.Send()
 			assert.NoError(t, err, "error making HTTP request")
 			assert.Equal(t, test.wantStatus, res.StatusCode())
+			if test.wantStatus == http.StatusOK {
+				assert.Equal(t, test.wantValue, string(res.Body()))
+			}
 		})
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"gmetrics/cmd/agent/collector/collection"
 	"gmetrics/cmd/agent/config"
 	"gmetrics/internal/metrics"
+	"gmetrics/internal/payload"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -55,6 +56,7 @@ func TestSendMetric(t *testing.T) {
 	tests := []struct {
 		name          string
 		setupMock     func() *httptest.Server
+		body          func() payload.Metrics
 		metricType    string
 		metricName    string
 		metricValue   string
@@ -67,9 +69,15 @@ func TestSendMetric(t *testing.T) {
 					responseWriter.WriteHeader(http.StatusOK)
 				}))
 			},
-			metricType:    metrics.TypeGauge,
-			metricName:    "TestMetric",
-			metricValue:   "10",
+			body: func() payload.Metrics {
+				var val float64 = 10
+				return payload.Metrics{
+					ID:    "TestMetric",
+					MType: metrics.TypeGauge,
+					Delta: nil,
+					Value: &val,
+				}
+			},
 			expectedError: false,
 		},
 		{
@@ -79,9 +87,15 @@ func TestSendMetric(t *testing.T) {
 					responseWriter.WriteHeader(http.StatusBadRequest)
 				}))
 			},
-			metricType:    metrics.TypeGauge,
-			metricName:    "TestMetric",
-			metricValue:   "10",
+			body: func() payload.Metrics {
+				var val float64 = 10
+				return payload.Metrics{
+					ID:    "TestMetric",
+					MType: metrics.TypeGauge,
+					Delta: nil,
+					Value: &val,
+				}
+			},
 			expectedError: true,
 		},
 		{
@@ -91,14 +105,19 @@ func TestSendMetric(t *testing.T) {
 					responseWriter.WriteHeader(http.StatusNotFound)
 				}))
 			},
-			metricType:    metrics.TypeGauge,
-			metricName:    "TestMetric",
-			metricValue:   "10",
+			body: func() payload.Metrics {
+				var val float64 = 10
+				return payload.Metrics{
+					ID:    "TestMetric",
+					MType: metrics.TypeGauge,
+					Delta: nil,
+					Value: &val,
+				}
+			},
 			expectedError: true,
 		},
 	}
-
-	config.SetGlobalConfig(config.InitializeNewCliConfig())
+	config.Params = config.InitializeDefaultConfig()
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -108,7 +127,7 @@ func TestSendMetric(t *testing.T) {
 			defer mockServer.Close()
 
 			c := New(getMockCollection())
-			err := c.sendMetric(tc.metricType, tc.metricName, tc.metricValue)
+			err := c.sendMetric(tc.body())
 			if tc.expectedError {
 				assert.Error(t, err)
 			} else {

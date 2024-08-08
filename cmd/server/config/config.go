@@ -2,33 +2,51 @@ package config
 
 import (
 	"fmt"
+	"time"
+)
+
+const (
+	// DefaultServerURL Url сервера получателя метрик по умолчанию
+	DefaultServerURL = "localhost:8080"
+
+	// DefaultLogLevel Уровень логирования по умолчанию
+	DefaultLogLevel = "info"
+
+	// DefaultFilePath путь хранения метрик по умолчанию
+	DefaultFilePath = "storage.json"
+
+	// DefaultStoreInterval период сохранения метрик в файл по умолчанию
+	DefaultStoreInterval = 300 * time.Second
+
+	// DefaultRestore надобность загрузки старых данных из файла при включении
+	DefaultRestore = false
 )
 
 // CliConfig конфигурация сервера из командной строки
 type CliConfig struct {
 	// Address адрес сервера
-	Address string `env:"ADDRESS"`
+	Address       string        `env:"ADDRESS"`
+	LogLevel      string        `env:"LOG_LEVEL"`      // Уровень логирования
+	FileStorage   string        `env:"FILE_STORAGE"`   // Путь к хранению файлов, если не указан, то будет создано обычное хранилище в памяти
+	Restore       bool          `env:"RESTORE"`        // Надобность загрузки старых данных из файла при включении
+	StoreInterval time.Duration `env:"STORE_INTERVAL"` // период сохранения метрик в файл; 0 - синхронный режим
 }
-
-// DefaultServerURL Url сервера получателя метрик по умолчанию
-var DefaultServerURL = "localhost:8080"
 
 // Params конфигурация приложения
 var Params *CliConfig
 
-// InitializeNewCliConfig инициализация конфигурации приложения
-func InitializeNewCliConfig() *CliConfig {
+// InitializeDefaultConfig инициализация конфигурации приложения
+func InitializeDefaultConfig() *CliConfig {
 	return &CliConfig{
-		Address: DefaultServerURL,
+		Address:       DefaultServerURL,
+		LogLevel:      DefaultLogLevel,
+		FileStorage:   DefaultFilePath,
+		Restore:       DefaultRestore,
+		StoreInterval: DefaultStoreInterval,
 	}
-}
-
-// SetGlobalConfig устанавливает глобальную конфигурацию приложения
-func SetGlobalConfig(cnf *CliConfig) {
-	Params = cnf
 }
 
 // PrintConfig возвращает строку с информацией о текущей конфигурации сервера и интервалах сбора метрик и отправки метрик.
 func PrintConfig(cnf *CliConfig) string {
-	return fmt.Sprintf("Server Address: %s\n", cnf.Address)
+	return fmt.Sprintf("Server Address: %s, Log level: %s\n", cnf.Address, cnf.LogLevel)
 }

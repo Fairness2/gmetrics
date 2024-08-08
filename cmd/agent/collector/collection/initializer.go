@@ -27,18 +27,25 @@ func NewCollection() *Type {
 // for the duration defined by config.PollInterval.
 func CollectProcess(ctx context.Context) {
 	log.Printf("Collect metrics process starts. Period is %d mseconds\n", config.Params.PollInterval)
+	ticker := time.NewTicker(config.Params.PollInterval)
+	// Делаем первый сбор метрик сразу же
+	collect()
 	for {
-		stats := runtime.MemStats{}
-		runtime.ReadMemStats(&stats)
-		Collection.Collect(stats)
 		// Ловим закрытие контекста, чтобы завершить обработку
 		select {
+		case <-ticker.C:
+			collect()
 		case <-ctx.Done():
+			ticker.Stop()
 			log.Println("Collect metrics process stopped")
 			return
-		default:
-			//continue
 		}
-		time.Sleep(config.Params.PollInterval)
 	}
+}
+
+// collect reads memory stats and calls Collection.Collect to populate the collection with system metrics.
+func collect() {
+	stats := runtime.MemStats{}
+	runtime.ReadMemStats(&stats)
+	Collection.Collect(stats)
 }

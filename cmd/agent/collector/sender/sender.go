@@ -1,68 +1,102 @@
 package sender
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	"gmetrics/cmd/agent/collector/collection"
 	"gmetrics/cmd/agent/config"
+	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
+	"gmetrics/internal/payload"
 	"log"
 	"net/http"
-	"net/url"
+	"sync"
 	"time"
 )
 
 type Client struct {
 	client            *resty.Client // Клиент для подключения к серверам
 	metricsCollection *collection.Type
+	encodeWriterPool  sync.Pool
 }
 
 func New(mCollection *collection.Type) *Client {
 	c := &Client{
 		metricsCollection: mCollection,
 		client:            resty.New(),
-	}
+		encodeWriterPool: sync.Pool{
+			New: func() interface{} {
+				writer, err := gzip.NewWriterLevel(nil, gzip.BestSpeed)
+				if err != nil {
+					logger.Log.Error(err)
+					return nil
+				}
+				return writer
+			},
+		}}
 	return c
 }
 
 // PeriodicSender Циклическая отправка данных
 func (c *Client) PeriodicSender(ctx context.Context) {
 	log.Println("Starting periodic sender")
+	ticker := time.NewTicker(config.Params.ReportInterval)
+	c.sendMetrics()
 	for {
-		c.sendMetrics()
 		// Ловим закрытие контекста, чтобы завершить обработку
 		select {
+		case <-ticker.C:
+			c.sendMetrics()
 		case <-ctx.Done():
 			log.Println("Periodic sender stopped")
+			ticker.Stop()
 			return
-		default:
-			//continue
 		}
-		time.Sleep(config.Params.ReportInterval)
 	}
 }
 
 // sendMetrics Функция прохода по метрикам и запуск их отправки
 func (c *Client) sendMetrics() {
 	log.Println("Sending metrics")
+	// Блокируем коллекцию на изменения
 	c.metricsCollection.Lock()
 	defer c.metricsCollection.Unlock()
+	wg := sync.WaitGroup{}
+
 	// Отправляем все собранные метрики
 	for name, value := range c.metricsCollection.Values {
 		switch value := value.(type) {
 		case metrics.Gauge:
-			metricValue := value.ToString()
+			metricValue := value.GetRaw()
+			body := payload.Metrics{
+				ID:    name,
+				MType: metrics.TypeGauge,
+				Value: &metricValue,
+			}
+			wg.Add(1)
 			go func() {
-				err := c.sendMetric(metrics.TypeGauge, name, metricValue)
+				defer wg.Done()
+				err := c.sendMetric(body)
 				if err != nil {
 					log.Println(err)
 				}
 			}()
 		case metrics.Counter:
-			metricValue := value.ToString()
+			metricValue := value.GetRaw()
+			body := payload.Metrics{
+				ID:    name,
+				MType: metrics.TypeCounter,
+				Delta: &metricValue,
+			}
+			wg.Add(1)
 			go func() {
-				err := c.sendMetric(metrics.TypeCounter, name, metricValue)
+				defer wg.Done()
+				err := c.sendMetric(body)
 				if err != nil {
 					log.Println(err)
 				}
@@ -70,36 +104,52 @@ func (c *Client) sendMetrics() {
 		}
 	}
 	// Отдельно отправляем каунт сбора метрик
-	pCnt := c.metricsCollection.PollCount.ToString()
+	pCnt := c.metricsCollection.PollCount.GetRaw()
+	body := payload.Metrics{
+		ID:    "PollCount",
+		MType: metrics.TypeCounter,
+		Delta: &pCnt,
+	}
+	wg.Add(1)
 	go func() {
-		err := c.sendMetric(metrics.TypeCounter, "PollCount", pCnt)
+		defer wg.Done()
+		err := c.sendMetric(body)
 		if err != nil {
 			log.Println(err)
 		}
 	}()
-
+	// Ждём завершения отправки всех метрик, чтобы сбросить каунтер
+	wg.Wait()
 	c.metricsCollection.ResetCounter()
 }
 
 // sendMetric Отправка метрики
-func (c *Client) sendMetric(mType string, name string, value string) error {
-	log.Printf("Sending metric %s with value %s type %s\n", name, value, mType)
-	// urlTemplate Шаблон урл: http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
-	var urlUpdateTemplate = "%s/update/%s/%s/%s"
-	sType := url.QueryEscape(mType)
-	sName := url.QueryEscape(name)
-	sValue := url.QueryEscape(value)
-	sURL := fmt.Sprintf(urlUpdateTemplate, config.Params.ServerURL, sType, sName, sValue)
-	res, err := c.client.R().
-		SetHeader("Content-Type", "text/plain").
-		SetBody(nil).
-		Post(sURL)
-	// res, err := c.client.Post(sURL, "text/plain", nil)
-	log.Printf("Finish sending metric %s with value %s type %s\n", name, value, mType)
+func (c *Client) sendMetric(body payload.Metrics) error {
+	log.Printf("Sending metric %s with value %d, delta %d type %s\n", body.ID, body.Value, body.Delta, body.MType)
+	// urlTemplate Шаблон урл: http://<АДРЕС_СЕРВЕРА>/update
+	var urlUpdateTemplate = "%s/update"
+	sURL := fmt.Sprintf(urlUpdateTemplate, config.Params.ServerURL)
+
+	client := c.client.R().SetHeader("Content-Type", "application/json")
+
+	// Пробуем сжать тело
+	compressedBody, err := c.compressBody(body)
+	if err != nil {
+		// Если не получилось, то ставим обычное боди
+		log.Println("Cant compress body", err)
+		client.SetBody(body)
+	} else {
+		// Если получилось, то ставим заголовок о методе кодировки и ставим закодированное тело
+		client.SetHeader("Content-Encoding", "gzip").
+			SetBody(compressedBody)
+	}
+
+	// Отправляем запрос
+	res, err := client.Post(sURL)
+	log.Printf("Finish sending metric %s with value %d delta %d type %s\n", body.ID, body.Value, body.Delta, body.MType)
 	if err != nil {
 		return err
 	}
-	// defer res.Body.Close()
 	if statusCode := res.StatusCode(); statusCode != http.StatusOK {
 		return fmt.Errorf("http status code %d", statusCode)
 	}
@@ -107,9 +157,34 @@ func (c *Client) sendMetric(mType string, name string, value string) error {
 	return nil
 }
 
-// NewSender starts the process of sending metrics by creating a new sender client and
-// launching a goroutine to execute the periodicSender function.
-func NewSender(coll *collection.Type) *Client {
-	client := New(coll)
-	return client
+// compressBody сжимаем данные в формат gzip
+func (c *Client) compressBody(body payload.Metrics) ([]byte, error) {
+	// Преобразовываем тело в строку джейсон
+	encodedBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Создаём буфер, в который запишем сжатое тело
+	var buf bytes.Buffer
+	// Берём свободный врайтер для записи
+	writer := c.encodeWriterPool.Get().(*gzip.Writer)
+	// Если у нас он nil, то была ошибка
+	if writer == nil {
+		return nil, errors.New("writer is nil")
+	}
+	// Устанавливаем новый буфер во врайтер
+	writer.Reset(&buf)
+	// Кодируем данные
+	_, err = writer.Write(encodedBody)
+	if err != nil {
+		return nil, err
+	}
+	// Делаем закрытие врайтера, чтобы он прописал все нужные байты в конце. После Reset он откроется снова (Проверял,ставил последовательно закрытие, ресет с новым буфером и снова запись)
+	err = writer.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }

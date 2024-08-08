@@ -4,8 +4,8 @@ import "sync"
 
 // MemStorage Хранилище метрик в памяти
 type MemStorage struct {
-	gauge   map[string]Gauge
-	counter map[string]Counter
+	Gauge   map[string]Gauge   `json:"gauge"`
+	Counter map[string]Counter `json:"counter"`
 	mutex   *sync.RWMutex
 	//metrics map[string]any
 }
@@ -22,17 +22,17 @@ type MemStorage struct {
 func (storage *MemStorage) SetGauge(name string, value Gauge) {
 	storage.mutex.Lock()
 	defer storage.mutex.Unlock()
-	storage.gauge[name] = value
+	storage.Gauge[name] = value
 }
 
 func (storage *MemStorage) AddCounter(name string, value Counter) {
 	storage.mutex.Lock()
 	defer storage.mutex.Unlock()
-	oldValue, ok := storage.counter[name]
+	oldValue, ok := storage.Counter[name]
 	if ok {
 		value = oldValue.Add(value)
 	}
-	storage.counter[name] = value
+	storage.Counter[name] = value
 }
 
 // Get Получение значения метрики из хранилища
@@ -47,22 +47,22 @@ func (storage *MemStorage) AddCounter(name string, value Counter) {
 func (storage *MemStorage) GetGauge(name string) (Gauge, bool) {
 	storage.mutex.RLock()
 	defer storage.mutex.RUnlock()
-	value, ok := storage.gauge[name]
+	value, ok := storage.Gauge[name]
 	return value, ok
 }
 
 func (storage *MemStorage) GetCounter(name string) (Counter, bool) {
 	storage.mutex.RLock()
 	defer storage.mutex.RUnlock()
-	cValue, ok := storage.counter[name]
+	cValue, ok := storage.Counter[name]
 	return cValue, ok
 }
 
-func NewMemStorage() Storage {
+func NewMemStorage() *MemStorage {
 	return &MemStorage{
 		//metrics: make(map[string]any),
-		gauge:   make(map[string]Gauge),
-		counter: make(map[string]Counter),
+		Gauge:   make(map[string]Gauge),
+		Counter: make(map[string]Counter),
 		mutex:   new(sync.RWMutex),
 	}
 }
@@ -70,11 +70,11 @@ func NewMemStorage() Storage {
 func (storage *MemStorage) GetGauges() map[string]Gauge {
 	storage.mutex.RLock()
 	defer storage.mutex.RUnlock()
-	return storage.gauge
+	return storage.Gauge
 }
 
 func (storage *MemStorage) GetCounters() map[string]Counter {
 	storage.mutex.RLock()
 	defer storage.mutex.RUnlock()
-	return storage.counter
+	return storage.Counter
 }

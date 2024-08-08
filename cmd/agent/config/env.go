@@ -5,6 +5,17 @@ import (
 	"time"
 )
 
+const (
+	// DefaultPollInterval Интервал между сборкой данных по умолчанию
+	DefaultPollInterval = 2 * time.Second
+
+	// DefaultReportInterval Интервал между отправкой данных по умолчанию
+	DefaultReportInterval = 10 * time.Second
+
+	// DefaultServerURL Url сервера получателя метрик по умолчанию
+	DefaultServerURL = "http://localhost:8080"
+)
+
 // CliConfig конфигурация клиента из командной строки
 type CliConfig struct {
 	// PollInterval Интервал между сборкой данных
@@ -18,8 +29,8 @@ type CliConfig struct {
 // Params конфигурация приложения
 var Params *CliConfig
 
-// InitializeNewCliConfig инициализация конфигурации приложения
-func InitializeNewCliConfig() *CliConfig {
+// InitializeDefaultConfig инициализация конфигурации приложения
+func InitializeDefaultConfig() *CliConfig {
 	return &CliConfig{
 		PollInterval:   DefaultPollInterval,
 		ReportInterval: DefaultReportInterval,
@@ -27,24 +38,10 @@ func InitializeNewCliConfig() *CliConfig {
 	}
 }
 
-// DefaultPollInterval Интервал между сборкой данных по умолчанию
-var DefaultPollInterval = 2 * time.Second
-
-// DefaultReportInterval Интервал между отправкой данных по умолчанию
-var DefaultReportInterval = 10 * time.Second
-
-// DefaultServerURL Url сервера получателя метрик по умолчанию
-var DefaultServerURL = "http://localhost:8080"
-
 // PrintConfig возвращает строку с информацией о текущей конфигурации сервера и интервалах сбора метрик и отправки метрик.
 // Server Address: <адрес сервера>
 // Frequency of metrics collection: <интервал сбора метрик> s.
 // Frequency of sending metrics: <интервал отправки метрик> s.
 func PrintConfig(cnf *CliConfig) string {
 	return fmt.Sprintf("Server Address: %s\nFrequency of metrics collection: %d s.\nFrequency of sending metrics: %d s.\n", cnf.ServerURL, cnf.PollInterval/time.Second, cnf.ReportInterval/time.Second)
-}
-
-// SetGlobalConfig устанавливает глобальную конфигурацию приложения
-func SetGlobalConfig(cnf *CliConfig) {
-	Params = cnf
 }
