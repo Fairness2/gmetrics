@@ -31,7 +31,7 @@ func (storage *DurationFileStorage) Flush() error {
 }
 
 // Sync синхронизация данных хранилища в файл по таймеру
-func (storage *DurationFileStorage) Sync(ctx context.Context) {
+func (storage *DurationFileStorage) Sync(ctx context.Context) error {
 	interval := time.Duration(ctx.Value(contextkeys.SyncInterval).(int64)) * time.Second
 	logger.Log.Infof("Sync metrics process starts. Period is %d seconds", interval/time.Second)
 	ticker := time.NewTicker(interval)
@@ -47,10 +47,12 @@ func (storage *DurationFileStorage) Sync(ctx context.Context) {
 			logger.Log.Debug("Sync metrics before end")
 			ticker.Stop()
 			if err := storage.Flush(); err != nil {
-				logger.Log.Error(err)
+				logger.Log.Debug("Error while syncing metrics")
+				return err
+				//logger.Log.Error(err)
 			}
 			logger.Log.Debug("Synced")
-			return
+			return nil
 		}
 	}
 }

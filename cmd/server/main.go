@@ -16,11 +16,11 @@ import (
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/middlewares"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 )
 
@@ -31,32 +31,29 @@ func main() {
 		log.Fatal(err)
 	}
 	config.Params = cnf
-	wg := sync.WaitGroup{} // Группа для синхронизации
+	wg := new(errgroup.Group)
+	//wg := sync.WaitGroup{} // Группа для синхронизации
 
 	// стартуем приложение
-	if err = runApplication(&wg); err != nil {
+	if err = runApplication(wg); err != nil {
 		logger.Log.Error(err)
 	}
 
-	wg.Wait() // Ожидаем завершения всех горутин перед завершением программы
+	// Ожидаем завершения всех горутин перед завершением программы
+	if err = wg.Wait(); err != nil {
+		logger.Log.Error(err)
+	}
 	logger.Log.Info("End program")
 }
 
 // runApplication производим старт приложения
-func runApplication(wg *sync.WaitGroup) error {
+func runApplication(wg *errgroup.Group) error {
 	ctx, cancel := context.WithCancel(context.Background()) // Контекст для правильной остановки синхронизации
 	defer func() {
 		logger.Log.Info("Cancel context")
 		cancel()
 	}()
-	// Регистрируем прослушиватель для закрытия записи в файл и завершения сервера
-	go func() {
-		stop := make(chan os.Signal, 1)
-		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-		<-stop
-		logger.Log.Info("Stopping server")
-		cancel()
-	}()
+
 	_, err := InitLogger()
 	if err != nil {
 		return err
@@ -65,7 +62,8 @@ func runApplication(wg *sync.WaitGroup) error {
 	// Вызываем функцию закрытия базы данных
 	defer closeDB()
 	// Инициализируем базу данных
-	err = initDB(ctx, wg)
+	//err = initDB(ctx, wg)
+	err = initDB()
 	if err != nil {
 		return err
 	}
@@ -75,7 +73,15 @@ func runApplication(wg *sync.WaitGroup) error {
 	// Инициализируем хранилище
 	InitStore(ctx, wg)
 
-	if err = run(ctx, wg); err != nil { // Запускаем сервер
+	server := run(wg)
+
+	// Регистрируем прослушиватель для закрытия записи в файл и завершения сервера
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	<-stop
+	logger.Log.Info("Stopping server")
+	cancel()
+	if err = stopServer(server, ctx); err != nil { // Запускаем сервер
 		return err
 	}
 
@@ -92,29 +98,27 @@ func closeStorage() {
 	if dErr := st.FlushAndClose(); dErr != nil {
 		logger.Log.Error(dErr)
 	}
+	logger.Log.Info("Storage closed")
 }
 
 // run запуск сервера
-func run(ctx context.Context, wg *sync.WaitGroup) (err error) {
+func run(wg *errgroup.Group) *http.Server {
 	logger.Log.Infof("Running server on %s", config.Params.Address)
 	server := http.Server{
 		Addr:    config.Params.Address,
 		Handler: getRouter(),
 	}
-	wg.Add(1)
-	go func() {
-		err = stopServer(&server, ctx, wg)
-	}()
-	err = server.ListenAndServe()
-	if err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return err
-	}
-	return nil
+	wg.Go(func() error {
+		sErr := server.ListenAndServe()
+		if sErr != nil && !errors.Is(sErr, http.ErrServerClosed) {
+			return sErr
+		}
+		return nil
+	})
+	return &server
 }
 
-func stopServer(server *http.Server, ctx context.Context, wg *sync.WaitGroup) error {
-	defer wg.Done()
-	<-ctx.Done()
+func stopServer(server *http.Server, ctx context.Context) error {
 	// Заставляем завершиться сервер и ждём его завершения
 	err := server.Shutdown(ctx)
 	if err != nil {
@@ -159,7 +163,7 @@ func getRouter() chi.Router {
 }
 
 // InitStore устанавливаем глобальное хранилище метрик.
-func InitStore(ctx context.Context, wg *sync.WaitGroup) {
+func InitStore(ctx context.Context, wg *errgroup.Group) {
 	// Если указан путь к файлу, то будет создано хранилище с сохранением в файл, иначе будет создано хранилище в памяти
 	if config.Params.DatabaseDSN != "" {
 		logger.Log.Info("Set database store")
@@ -178,11 +182,9 @@ func InitStore(ctx context.Context, wg *sync.WaitGroup) {
 		ctx = context.WithValue(ctx, contextkeys.SyncInterval, config.Params.StoreInterval)
 		// Запускаем синхронизацию в файл
 		if !store.SyncMode {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				store.Sync(ctx)
-			}()
+			wg.Go(func() error {
+				return store.Sync(ctx)
+			})
 		}
 	} else {
 		logger.Log.Info("Set in-memory store")
@@ -211,7 +213,8 @@ func InitLogger() (*zap.SugaredLogger, error) {
 }
 
 // initDB инициализация подключения к бд
-func initDB(ctx context.Context, wg *sync.WaitGroup) error {
+// func initDB(ctx context.Context, wg *errgroup.Group*) error {
+func initDB() error {
 	// Создание пула подключений к базе данных для приложения
 	var err error
 	database.DB, err = database.NewPgDB(config.Params.DatabaseDSN)
@@ -219,16 +222,16 @@ func initDB(ctx context.Context, wg *sync.WaitGroup) error {
 		return err
 	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	/*wg.Go(func() error {
 		<-ctx.Done()
 		logger.Log.Info("Closing database connection for context")
-		err = database.DB.Close()
-		if err != nil {
-			logger.Log.Error(err)
+
+		if dErr := database.DB.Close(); dErr != nil {
+			return dErr
+			//logger.Log.Error(err)
 		}
-	}()
+		return nil
+	})*/
 
 	if config.Params.DatabaseDSN != "" {
 		logger.Log.Info("Migrate migrations")
