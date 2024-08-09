@@ -2,15 +2,14 @@ package config
 
 import (
 	"fmt"
-	"time"
 )
 
 const (
 	// DefaultPollInterval Интервал между сборкой данных по умолчанию
-	DefaultPollInterval = 2 * time.Second
+	DefaultPollInterval = 2
 
 	// DefaultReportInterval Интервал между отправкой данных по умолчанию
-	DefaultReportInterval = 10 * time.Second
+	DefaultReportInterval = 10
 
 	// DefaultServerURL Url сервера получателя метрик по умолчанию
 	DefaultServerURL = "http://localhost:8080"
@@ -19,11 +18,11 @@ const (
 // CliConfig конфигурация клиента из командной строки
 type CliConfig struct {
 	// PollInterval Интервал между сборкой данных
-	PollInterval time.Duration
+	PollInterval int64 `env:"POLL_INTERVAL"`
 	// ReportInterval Интервал между отправкой данных
-	ReportInterval time.Duration
+	ReportInterval int64 `env:"REPORT_INTERVAL"`
 	// ServerURL Url сервера получателя метрик
-	ServerURL string
+	ServerURL string `env:"ADDRESS"`
 }
 
 // Params конфигурация приложения
@@ -43,5 +42,5 @@ func InitializeDefaultConfig() *CliConfig {
 // Frequency of metrics collection: <интервал сбора метрик> s.
 // Frequency of sending metrics: <интервал отправки метрик> s.
 func PrintConfig(cnf *CliConfig) string {
-	return fmt.Sprintf("Server Address: %s\nFrequency of metrics collection: %d s.\nFrequency of sending metrics: %d s.\n", cnf.ServerURL, cnf.PollInterval/time.Second, cnf.ReportInterval/time.Second)
+	return fmt.Sprintf("Server Address: %s\nFrequency of metrics collection: %d s.\nFrequency of sending metrics: %d s.\n", cnf.ServerURL, cnf.PollInterval, cnf.ReportInterval)
 }

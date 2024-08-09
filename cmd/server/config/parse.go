@@ -5,8 +5,6 @@ import (
 	"flag"
 	"github.com/caarlos0/env/v6"
 	"os"
-	"strconv"
-	"time"
 )
 
 // Parse инициализирует новую консольную конфигурацию, обрабатывает аргументы командной строки
@@ -28,14 +26,7 @@ func Parse() (*CliConfig, error) {
 
 // parseFromEnv заполняем конфигурацию переменных из окружения
 func parseFromEnv(params *CliConfig) error {
-	cnf := struct {
-		Address       string `env:"ADDRESS"`
-		LogLevel      string `env:"LOG_LEVEL"`
-		FileStorage   string `env:"FILE_STORAGE"`
-		Restore       bool   `env:"RESTORE"`
-		StoreInterval int    `env:"STORE_INTERVAL" envDefault:"-1"`
-		DatabaseDSN   string `env:"DATABASE_DSN"`
-	}{}
+	cnf := CliConfig{}
 	err := env.Parse(&cnf)
 	// Если ошибка, то считаем, что вывести конфигурацию из окружения не удалось
 	if err != nil {
@@ -54,7 +45,7 @@ func parseFromEnv(params *CliConfig) error {
 		params.Restore = cnf.Restore
 	}
 	if cnf.StoreInterval >= 0 {
-		params.StoreInterval = time.Duration(cnf.StoreInterval) * time.Second
+		params.StoreInterval = cnf.StoreInterval
 	}
 	if cnf.DatabaseDSN != "" {
 		params.DatabaseDSN = cnf.DatabaseDSN
@@ -69,16 +60,9 @@ func parseFromCli(cnf *CliConfig) (parseError error) {
 	flag.StringVar(&cnf.LogLevel, "ll", DefaultLogLevel, "level of logging")
 	flag.StringVar(&cnf.FileStorage, "f", DefaultFilePath, "store file path")
 	flag.StringVar(&cnf.DatabaseDSN, "d", DefaultDatabaseDSN, "database connection")
+	flag.Int64Var(&cnf.StoreInterval, "i", DefaultStoreInterval, "frequency of save metrics. 0 is sync mode")
 	flag.BoolVar(&cnf.Restore, "r", DefaultRestore, "need to restore")
-	flag.Func("i", "frequency of save metrics. 0 is sync mode", func(s string) error {
-		val, err := strconv.Atoi(s)
-		if err != nil {
-			parseError = errors.New("requency of save metrics: " + err.Error())
-			return parseError
-		}
-		cnf.StoreInterval = time.Duration(val) * time.Second
-		return nil
-	})
+
 	// Парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse() // Сейчас будет выход из приложения, поэтому код ниже не будет исполнен, но может пригодиться в будущем, если поменять флаг выхода или будет несколько сетов
 	if !flag.Parsed() {

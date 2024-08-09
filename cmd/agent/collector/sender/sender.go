@@ -46,7 +46,7 @@ func New(mCollection *collection.Type) *Client {
 // PeriodicSender Циклическая отправка данных
 func (c *Client) PeriodicSender(ctx context.Context) {
 	log.Println("Starting periodic sender")
-	ticker := time.NewTicker(config.Params.ReportInterval)
+	ticker := time.NewTicker(time.Duration(config.Params.ReportInterval) * time.Second)
 	c.retrySend()
 	for {
 		// Ловим закрытие контекста, чтобы завершить обработку

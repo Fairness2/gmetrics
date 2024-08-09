@@ -75,7 +75,7 @@ func runApplication(wg *sync.WaitGroup) error {
 	// Инициализируем хранилище
 	InitStore(ctx, wg)
 
-	if err := run(ctx, wg); err != nil { // Запускаем сервер
+	if err = run(ctx, wg); err != nil { // Запускаем сервер
 		return err
 	}
 

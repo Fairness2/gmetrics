@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"time"
 )
 
 const (
@@ -16,7 +15,7 @@ const (
 	DefaultFilePath = "storage.json"
 
 	// DefaultStoreInterval период сохранения метрик в файл по умолчанию
-	DefaultStoreInterval = 300 * time.Second
+	DefaultStoreInterval = 300
 
 	// DefaultRestore надобность загрузки старых данных из файла при включении
 	DefaultRestore = false
@@ -28,12 +27,12 @@ const (
 // CliConfig конфигурация сервера из командной строки
 type CliConfig struct {
 	// Address адрес сервера
-	Address       string        `env:"ADDRESS"`
-	LogLevel      string        `env:"LOG_LEVEL"`      // Уровень логирования
-	FileStorage   string        `env:"FILE_STORAGE"`   // Путь к хранению файлов, если не указан, то будет создано обычное хранилище в памяти
-	Restore       bool          `env:"RESTORE"`        // Надобность загрузки старых данных из файла при включении
-	StoreInterval time.Duration `env:"STORE_INTERVAL"` // период сохранения метрик в файл; 0 - синхронный режим TODO использовать в парсинге,переделать на int
-	DatabaseDSN   string        `env:"DATABASE_DSN"`   // подключение к базе данных
+	Address       string `env:"ADDRESS"`
+	LogLevel      string `env:"LOG_LEVEL"`      // Уровень логирования
+	FileStorage   string `env:"FILE_STORAGE"`   // Путь к хранению файлов, если не указан, то будет создано обычное хранилище в памяти
+	Restore       bool   `env:"RESTORE"`        // Надобность загрузки старых данных из файла при включении
+	StoreInterval int64  `env:"STORE_INTERVAL"` // период сохранения метрик в файл; 0 - синхронный режим
+	DatabaseDSN   string `env:"DATABASE_DSN"`   // подключение к базе данных
 }
 
 // Params конфигурация приложения
@@ -46,7 +45,7 @@ func InitializeDefaultConfig() *CliConfig {
 		LogLevel:      DefaultLogLevel,
 		FileStorage:   DefaultFilePath,
 		Restore:       DefaultRestore,
-		StoreInterval: DefaultStoreInterval,
+		StoreInterval: int64(DefaultStoreInterval),
 		DatabaseDSN:   DefaultDatabaseDSN,
 	}
 }

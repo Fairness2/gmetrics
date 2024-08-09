@@ -15,12 +15,13 @@ func LogRequests(next http.Handler) http.Handler {
 			ResponseWriter: response,
 			data:           new(responseData),
 		}
+		Log.Infow("Got incoming HTTP request",
+			"method", request.Method,
+			"path", request.URL.Path,
+		)
 		// Регистрируем завершающую функцию, чтобы залогировать в любом случае
-		// TODO Часть данных залогировать раньше
 		defer func() {
 			Log.Infow("Got incoming HTTP request",
-				"method", request.Method,
-				"path", request.URL.Path,
 				"duration", time.Since(start),
 				"status", newWriter.data.status,
 				"bodySize", fmt.Sprintf("%d B", newWriter.data.size),
