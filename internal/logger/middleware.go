@@ -22,6 +22,8 @@ func LogRequests(next http.Handler) http.Handler {
 		// Регистрируем завершающую функцию, чтобы залогировать в любом случае
 		defer func() {
 			Log.Infow("Got incoming HTTP request",
+				"method", request.Method,
+				"path", request.URL.Path,
 				"duration", time.Since(start),
 				"status", newWriter.data.status,
 				"bodySize", fmt.Sprintf("%d B", newWriter.data.size),
