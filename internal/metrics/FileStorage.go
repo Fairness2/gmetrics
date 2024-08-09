@@ -157,7 +157,11 @@ func restoreFromFile(filename string, storage Storage) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if fErr := file.Close(); fErr != nil {
+			logger.Log.Error(fErr)
+		}
+	}()
 	decoder := json.NewDecoder(file)
 	return decoder.Decode(storage)
 }
