@@ -11,6 +11,7 @@ import (
 	"gmetrics/cmd/agent/collector/collection"
 	"gmetrics/cmd/agent/config"
 	"gmetrics/internal/logger"
+	"gmetrics/internal/metricerrors"
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/payload"
 	"log"
@@ -46,12 +47,12 @@ func New(mCollection *collection.Type) *Client {
 func (c *Client) PeriodicSender(ctx context.Context) {
 	log.Println("Starting periodic sender")
 	ticker := time.NewTicker(config.Params.ReportInterval)
-	c.sendMetrics()
+	c.retrySend()
 	for {
 		// Ловим закрытие контекста, чтобы завершить обработку
 		select {
 		case <-ticker.C:
-			c.sendMetrics()
+			c.retrySend()
 		case <-ctx.Done():
 			log.Println("Periodic sender stopped")
 			ticker.Stop()
@@ -60,8 +61,27 @@ func (c *Client) PeriodicSender(ctx context.Context) {
 	}
 }
 
+// retrySend отправка метрик с повторами
+func (c *Client) retrySend() {
+	pause := time.Second
+	var rErr *metricerrors.Retriable
+	for i := 0; i < 3; i++ {
+		err := c.sendMetrics()
+		if err == nil {
+			break
+		}
+		log.Println(err)
+		if !errors.As(err, &rErr) {
+			break
+		}
+
+		<-time.After(pause)
+		pause += 2 * time.Second
+	}
+}
+
 // sendMetrics Функция прохода по метрикам и запуск их отправки
-func (c *Client) sendMetrics() {
+func (c *Client) sendMetrics() error {
 	log.Println("Sending metrics")
 	// Блокируем коллекцию на изменения
 	c.metricsCollection.Lock()
@@ -96,10 +116,11 @@ func (c *Client) sendMetrics() {
 	})
 	// Отправляем метрики, но сбрасываем каунтер только при успешной отправке
 	if err := c.sendToServer(body); err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 	c.metricsCollection.ResetCounter()
+
+	return nil
 }
 
 // sendToServer Отправка метрики
@@ -127,10 +148,10 @@ func (c *Client) sendToServer(body []payload.Metrics) error {
 	res, err := client.Post(sURL)
 	log.Println("Finish sending metrics")
 	if err != nil {
-		return err
+		return metricerrors.NewRetriable(err)
 	}
 	if statusCode := res.StatusCode(); statusCode != http.StatusOK {
-		return fmt.Errorf("http status code %d", statusCode)
+		return metricerrors.NewRetriable(fmt.Errorf("http status code %d", statusCode))
 	}
 
 	return nil

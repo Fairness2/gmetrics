@@ -16,6 +16,7 @@ func LogRequests(next http.Handler) http.Handler {
 			data:           new(responseData),
 		}
 		// Регистрируем завершающую функцию, чтобы залогировать в любом случае
+		// TODO Часть данных залогировать раньше
 		defer func() {
 			Log.Infow("Got incoming HTTP request",
 				"method", request.Method,

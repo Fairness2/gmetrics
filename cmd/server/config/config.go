@@ -32,7 +32,7 @@ type CliConfig struct {
 	LogLevel      string        `env:"LOG_LEVEL"`      // Уровень логирования
 	FileStorage   string        `env:"FILE_STORAGE"`   // Путь к хранению файлов, если не указан, то будет создано обычное хранилище в памяти
 	Restore       bool          `env:"RESTORE"`        // Надобность загрузки старых данных из файла при включении
-	StoreInterval time.Duration `env:"STORE_INTERVAL"` // период сохранения метрик в файл; 0 - синхронный режим
+	StoreInterval time.Duration `env:"STORE_INTERVAL"` // период сохранения метрик в файл; 0 - синхронный режим TODO использовать в парсинге,переделать на int
 	DatabaseDSN   string        `env:"DATABASE_DSN"`   // подключение к базе данных
 }
 

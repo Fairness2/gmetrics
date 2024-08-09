@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"gmetrics/internal/logger"
 	models "gmetrics/internal/models/skill"
@@ -117,6 +118,27 @@ func (a *app) webhook(response http.ResponseWriter, request *http.Request) {
 			text = fmt.Sprintf("Сообщение от %s, отправлено %s: %s", message.Sender, message.Time, message.Payload)
 		}
 
+	// пользователь хочет зарегистрироваться
+	case strings.HasPrefix(req.Request.Command, "Зарегистрируй"):
+		// гипотетическая функция parseRegisterCommand вычленит из запроса
+		// желаемое имя нового пользователя
+		username := parseRegisterCommand(req.Request.Command)
+
+		// регистрируем пользователя
+		err := a.store.RegisterUser(ctx, req.Session.User.UserID, username)
+		// наличие неспецифичной ошибки
+		if err != nil && !errors.Is(err, store.ErrConflict) {
+			logger.Log.Debug("cannot register user", zap.Error(err))
+			response.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		// определяем правильное ответное сообщение пользователю
+		text = fmt.Sprintf("Вы успешно зарегистрированы под именем %s", username)
+		if errors.Is(err, store.ErrConflict) {
+			// ошибка специфична для случая конфликта имён пользователей
+			text = "Извините, такое имя уже занято. Попробуйте другое."
+		}
 	// если не поняли команду, просто скажем пользователю, сколько у него новых сообщений
 	default:
 		messages, err := a.store.ListMessages(ctx, req.Session.User.UserID)
@@ -215,4 +237,7 @@ func parseSendCommand(command string) (string, string) {
 }
 func parseReadCommand(command string) int {
 	return 1
+}
+func parseRegisterCommand(command string) string {
+	return "Vasya"
 }
