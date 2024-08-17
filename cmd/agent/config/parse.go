@@ -43,6 +43,11 @@ func parseFromEnv(params *CliConfig) error {
 			return err
 		}
 	}
+	if cnf.HashKey != "" {
+		if err = setServerURL(cnf.HashKey, params); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -57,6 +62,7 @@ func parseFromCli(cnf *CliConfig) error {
 	})
 	flag.Int64Var(&cnf.PollInterval, "p", DefaultPollInterval, "frequency of metrics collection")
 	flag.Int64Var(&cnf.ReportInterval, "r", DefaultReportInterval, "frequency of sending metrics")
+	flag.StringVar(&cnf.HashKey, "k", DefaultHashKey, "encrypted key")
 
 	// Парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse() // Сейчас будет выход из приложения, поэтому код ниже не будет исполнен, но может пригодиться в будущем, если поменять флаг выхода или будет несколько сетов

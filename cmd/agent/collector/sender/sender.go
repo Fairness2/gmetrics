@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -132,16 +134,20 @@ func (c *Client) sendToServer(body []payload.Metrics) error {
 
 	client := c.client.R().SetHeader("Content-Type", "application/json")
 
-	// Пробуем сжать тело
-	compressedBody, err := c.compressBody(body)
+	marshaledBody, comressed, err := c.getBody(body)
 	if err != nil {
-		// Если не получилось, то ставим обычное боди
-		log.Println("Cant compress body", err)
-		client.SetBody(body)
+		return err
+	}
+	client.SetBody(marshaledBody)
+	if comressed {
+		client.SetHeader("Content-Encoding", "gzip")
+	}
+
+	bodyHash, hashErr := c.hashBody(marshaledBody)
+	if hashErr != nil {
+		log.Println("Cant hash body", err)
 	} else {
-		// Если получилось, то ставим заголовок о методе кодировки и ставим закодированное тело
-		client.SetHeader("Content-Encoding", "gzip").
-			SetBody(compressedBody)
+		client.SetHeader("HashSHA256", string(bodyHash))
 	}
 
 	// Отправляем запрос
@@ -158,13 +164,7 @@ func (c *Client) sendToServer(body []payload.Metrics) error {
 }
 
 // compressBody сжимаем данные в формат gzip
-func (c *Client) compressBody(body []payload.Metrics) ([]byte, error) {
-	// Преобразовываем тело в строку джейсон
-	encodedBody, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-
+func (c *Client) compressBody(body []byte) ([]byte, error) {
 	// Создаём буфер, в который запишем сжатое тело
 	var buf bytes.Buffer
 	// Берём свободный врайтер для записи
@@ -176,7 +176,7 @@ func (c *Client) compressBody(body []payload.Metrics) ([]byte, error) {
 	// Устанавливаем новый буфер во врайтер
 	writer.Reset(&buf)
 	// Кодируем данные
-	_, err = writer.Write(encodedBody)
+	_, err := writer.Write(body)
 	if err != nil {
 		return nil, err
 	}
@@ -187,4 +187,43 @@ func (c *Client) compressBody(body []payload.Metrics) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+// marshalBody преобразует тело в строку JSON
+func (c *Client) marshalBody(body []payload.Metrics) ([]byte, error) {
+	// Преобразовываем тело в строку джейсон
+	return json.Marshal(body)
+}
+
+// getBody возвращает тело запроса, упаковывая входные данные в JSON, сжимая их с помощью gzip,
+// если это возможно, и возвращая сжатое тело вместе с логическим значением, указывающим, было ли сжатие успешным.
+// Если сжатие не удалось, функция регистрирует ошибку и возвращает несжатое тело.
+// Функция также возвращает любую ошибку, возникшую во время упаковывания или сжатия.
+// Возвращаемый [] byte содержит тело, логическое значение указывает,
+// было ли сжатие успешным, а ошибка содержит любые обнаруженные ошибки.
+func (c *Client) getBody(body []payload.Metrics) ([]byte, bool, error) {
+	marshaledBody, err := c.marshalBody(body)
+	if err != nil {
+		return []byte{}, false, err
+	}
+	// Пробуем сжать тело
+	compressedBody, err := c.compressBody(marshaledBody)
+	if err != nil {
+		// Если не получилось, то ставим обычное боди
+		log.Println("Cant compress body", err)
+		return marshaledBody, false, nil
+	} else {
+		// Если получилось, то ставим заголовок о методе кодировки и ставим закодированное тело
+		return compressedBody, true, err
+	}
+}
+
+// hashBody создаём подпись запроса
+func (c *Client) hashBody(body []byte) ([]byte, error) {
+	if config.Params.HashKey == "" {
+		return body, errors.New("hash key is empty")
+	}
+	harsher := hmac.New(sha256.New, []byte(config.Params.HashKey))
+	harsher.Write(body)
+	return harsher.Sum(nil), nil
 }
