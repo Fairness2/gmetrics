@@ -26,7 +26,7 @@ func (g Gauge) Value() (driver.Value, error) {
 	return g.GetRaw(), nil
 }
 
-func (g *Gauge) Scan(value interface{}) error {
+func (g *Gauge) Scan(value any) error {
 	// если `value` равен `nil`, будет возвращён 0
 	if value == nil {
 		*g = 0

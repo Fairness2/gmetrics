@@ -14,7 +14,6 @@ import (
 	"gmetrics/internal/metricerrors"
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/payload"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -45,7 +44,7 @@ func New(mCollection *collection.Type) *Client {
 
 // PeriodicSender Циклическая отправка данных
 func (c *Client) PeriodicSender(ctx context.Context) {
-	log.Println("Starting periodic sender")
+	logger.Log.Info("Starting periodic sender")
 	ticker := time.NewTicker(time.Duration(config.Params.ReportInterval) * time.Second)
 	c.retrySend()
 	for {
@@ -54,7 +53,7 @@ func (c *Client) PeriodicSender(ctx context.Context) {
 		case <-ticker.C:
 			c.retrySend()
 		case <-ctx.Done():
-			log.Println("Periodic sender stopped")
+			logger.Log.Info("Periodic sender stopped")
 			ticker.Stop()
 			return
 		}
@@ -70,7 +69,7 @@ func (c *Client) retrySend() {
 		if err == nil {
 			break
 		}
-		log.Println(err)
+		logger.Log.Error(err)
 		if !errors.As(err, &rErr) {
 			break
 		}
@@ -82,7 +81,7 @@ func (c *Client) retrySend() {
 
 // sendMetrics Функция прохода по метрикам и запуск их отправки
 func (c *Client) sendMetrics() error {
-	log.Println("Sending metrics")
+	logger.Log.Info("Sending metrics")
 	// Блокируем коллекцию на изменения
 	c.metricsCollection.Lock()
 	defer c.metricsCollection.Unlock()
@@ -125,7 +124,7 @@ func (c *Client) sendMetrics() error {
 
 // sendToServer Отправка метрики
 func (c *Client) sendToServer(body []payload.Metrics) error {
-	log.Println("Sending metrics")
+	logger.Log.Info("Sending metrics")
 	// urlTemplate Шаблон урл: http://<АДРЕС_СЕРВЕРА>/update
 	var urlUpdateTemplate = "%s/updates"
 	sURL := fmt.Sprintf(urlUpdateTemplate, config.Params.ServerURL)
@@ -136,7 +135,7 @@ func (c *Client) sendToServer(body []payload.Metrics) error {
 	compressedBody, err := c.compressBody(body)
 	if err != nil {
 		// Если не получилось, то ставим обычное боди
-		log.Println("Cant compress body", err)
+		logger.Log.Error("Cant compress body", err)
 		client.SetBody(body)
 	} else {
 		// Если получилось, то ставим заголовок о методе кодировки и ставим закодированное тело
@@ -146,7 +145,7 @@ func (c *Client) sendToServer(body []payload.Metrics) error {
 
 	// Отправляем запрос
 	res, err := client.Post(sURL)
-	log.Println("Finish sending metrics")
+	logger.Log.Info("Finish sending metrics")
 	if err != nil {
 		return metricerrors.NewRetriable(err)
 	}

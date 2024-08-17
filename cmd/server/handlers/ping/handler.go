@@ -17,8 +17,8 @@ func Handler(response http.ResponseWriter, request *http.Request) {
 	err := database.DB.PingContext(ctx)
 	if err != nil {
 		logger.Log.Error(err)
-		helpers.SetHTTPError(response, http.StatusInternalServerError, []byte{})
+		helpers.SetHTTPResponse(response, http.StatusInternalServerError, []byte{})
 		return
 	}
-	helpers.SetHTTPError(response, http.StatusOK, []byte{})
+	helpers.SetHTTPResponse(response, http.StatusOK, []byte{})
 }

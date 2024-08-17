@@ -150,7 +150,7 @@ func TestURLHandler(t *testing.T) {
 
 			res, err := request.Send()
 			assert.NoError(t, err, "error making HTTP request")
-			assert.Equal(t, test.wantStatus, res.StatusCode())
+			assert.Equal(t, test.wantStatus, res.StatusCode(), "unexpected response status code")
 			if test.wantStatus == http.StatusOK {
 				assert.Equal(t, test.wantValue, string(res.Body()))
 			}

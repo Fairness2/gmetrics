@@ -6,13 +6,16 @@ import (
 
 const (
 	// DefaultPollInterval Интервал между сборкой данных по умолчанию
-	DefaultPollInterval = 2
+	DefaultPollInterval int64 = 2
 
 	// DefaultReportInterval Интервал между отправкой данных по умолчанию
-	DefaultReportInterval = 10
+	DefaultReportInterval int64 = 10
 
 	// DefaultServerURL Url сервера получателя метрик по умолчанию
 	DefaultServerURL = "http://localhost:8080"
+
+	// DefaultLogLevel Уровень логирования по умолчанию
+	DefaultLogLevel = "info"
 )
 
 // CliConfig конфигурация клиента из командной строки
@@ -23,6 +26,8 @@ type CliConfig struct {
 	ReportInterval int64 `env:"REPORT_INTERVAL"`
 	// ServerURL Url сервера получателя метрик
 	ServerURL string `env:"ADDRESS"`
+	// Уровень логирования
+	LogLevel string `env:"LOG_LEVEL"`
 }
 
 // Params конфигурация приложения
@@ -34,6 +39,7 @@ func InitializeDefaultConfig() *CliConfig {
 		PollInterval:   DefaultPollInterval,
 		ReportInterval: DefaultReportInterval,
 		ServerURL:      DefaultServerURL,
+		LogLevel:       DefaultLogLevel,
 	}
 }
 

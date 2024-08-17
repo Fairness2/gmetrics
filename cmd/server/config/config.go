@@ -15,7 +15,7 @@ const (
 	DefaultFilePath = "storage.json"
 
 	// DefaultStoreInterval период сохранения метрик в файл по умолчанию
-	DefaultStoreInterval = 300
+	DefaultStoreInterval int64 = 300
 
 	// DefaultRestore надобность загрузки старых данных из файла при включении
 	DefaultRestore = false
@@ -45,7 +45,7 @@ func InitializeDefaultConfig() *CliConfig {
 		LogLevel:      DefaultLogLevel,
 		FileStorage:   DefaultFilePath,
 		Restore:       DefaultRestore,
-		StoreInterval: int64(DefaultStoreInterval),
+		StoreInterval: DefaultStoreInterval,
 		DatabaseDSN:   DefaultDatabaseDSN,
 	}
 }

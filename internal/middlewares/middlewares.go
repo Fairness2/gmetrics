@@ -27,7 +27,7 @@ func GZIPDecompressRequest(next http.Handler) http.Handler {
 			if err != nil {
 				// Если ошибка создания читателя, то отправляем ошибку сервера
 				logger.Log.Error(err)
-				helpers.SetHTTPError(w, http.StatusInternalServerError, []byte(err.Error()))
+				helpers.SetHTTPResponse(w, http.StatusInternalServerError, []byte(err.Error()))
 				return
 			}
 			defer reader.Close()

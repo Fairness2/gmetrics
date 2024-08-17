@@ -22,7 +22,12 @@ type Writer interface {
 type DurationFileStorage struct {
 	Storage
 	writer   Writer
-	SyncMode bool // Флаг синхронного режима, в нём после записи в хранилище, сразу оно будет записано в файл
+	syncMode bool // Флаг синхронного режима, в нём после записи в хранилище, сразу оно будет записано в файл
+}
+
+// IsSyncMode открыто ли хранилище в синхронном режиме
+func (storage *DurationFileStorage) IsSyncMode() bool {
+	return storage.syncMode
 }
 
 // Flush запись данных в файл
@@ -47,7 +52,7 @@ func (storage *DurationFileStorage) Sync(ctx context.Context) error {
 			logger.Log.Debug("Sync metrics before end")
 			ticker.Stop()
 			if err := storage.Flush(); err != nil {
-				logger.Log.Debug("Error while syncing metrics")
+				logger.Log.Warn("Error while syncing metrics")
 				return err
 				//logger.Log.Error(err)
 			}
@@ -76,7 +81,7 @@ func (storage *DurationFileStorage) SetGauge(name string, value Gauge) error {
 	if err != nil {
 		return err
 	}
-	if storage.SyncMode {
+	if storage.syncMode {
 		if err = storage.Flush(); err != nil {
 			return err
 		}
@@ -90,7 +95,7 @@ func (storage *DurationFileStorage) AddCounter(name string, value Counter) error
 	if err != nil {
 		return err
 	}
-	if storage.SyncMode {
+	if storage.syncMode {
 		if err = storage.Flush(); err != nil {
 			return err
 		}
@@ -104,7 +109,7 @@ func (storage *DurationFileStorage) SetGauges(gauges map[string]Gauge) error {
 	if err != nil {
 		return err
 	}
-	if storage.SyncMode {
+	if storage.syncMode {
 		if err = storage.Flush(); err != nil {
 			return err
 		}
@@ -118,7 +123,7 @@ func (storage *DurationFileStorage) AddCounters(counters map[string]Counter) err
 	if err != nil {
 		return err
 	}
-	if storage.SyncMode {
+	if storage.syncMode {
 		if err = storage.Flush(); err != nil {
 			return err
 		}
@@ -147,7 +152,7 @@ func NewFileStorage(filename string, restore bool, syncMode bool) (*DurationFile
 	return &DurationFileStorage{
 		Storage:  storage,
 		writer:   writer,
-		SyncMode: syncMode,
+		syncMode: syncMode,
 	}, nil
 }
 
