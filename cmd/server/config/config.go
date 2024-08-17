@@ -1,9 +1,5 @@
 package config
 
-import (
-	"fmt"
-)
-
 const (
 	// DefaultServerURL Url сервера получателя метрик по умолчанию
 	DefaultServerURL = "localhost:8080"
@@ -48,9 +44,4 @@ func InitializeDefaultConfig() *CliConfig {
 		StoreInterval: DefaultStoreInterval,
 		DatabaseDSN:   DefaultDatabaseDSN,
 	}
-}
-
-// PrintConfig возвращает строку с информацией о текущей конфигурации сервера и интервалах сбора метрик и отправки метрик.
-func PrintConfig(cnf *CliConfig) string {
-	return fmt.Sprintf("Server Address: %s, Log level: %s\n", cnf.Address, cnf.LogLevel)
 }

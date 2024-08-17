@@ -67,7 +67,7 @@ func runApplication() error {
 	wg := new(errgroup.Group)
 	//wg := sync.WaitGroup{} // Группа для синхронизации
 	// Инициализируем хранилище
-	InitStore(ctx, wg)
+	InitStore(ctx)
 	// Запускаем синхронизацию хранилища, если оно это подразумевает
 	if st, ok := metrics.MeStore.(metrics.SynchronizationStorage); ok {
 		ctx = context.WithValue(ctx, contextkeys.SyncInterval, config.Params.StoreInterval)
@@ -174,7 +174,7 @@ func getRouter() chi.Router {
 }
 
 // InitStore устанавливаем глобальное хранилище метрик.
-func InitStore(ctx context.Context, wg *errgroup.Group) {
+func InitStore(ctx context.Context) {
 	// Если указан путь к файлу, то будет создано хранилище с сохранением в файл, иначе будет создано хранилище в памяти
 	if config.Params.DatabaseDSN != "" {
 		logger.Log.Info("Set database store")

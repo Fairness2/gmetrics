@@ -30,7 +30,11 @@ func GZIPDecompressRequest(next http.Handler) http.Handler {
 				helpers.SetHTTPResponse(w, http.StatusInternalServerError, []byte(err.Error()))
 				return
 			}
-			defer reader.Close()
+			defer func() {
+				if cErr := reader.Close(); cErr != nil {
+					logger.Log.Warn(cErr)
+				}
+			}()
 			r.Body = reader
 		}
 		next.ServeHTTP(w, r)
@@ -48,7 +52,11 @@ func GZIPCompressResponse(next http.Handler) http.Handler {
 			if err != nil {
 				logger.Log.Error(err)
 			} else {
-				defer writer.Close()
+				defer func() {
+					if cErr := writer.Close(); cErr != nil {
+						logger.Log.Warn(cErr)
+					}
+				}()
 				writer.Header().Set("Content-Encoding", "gzip")
 				newWriter = writer
 			}
