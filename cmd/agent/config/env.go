@@ -13,6 +13,9 @@ const (
 
 	// DefaultServerURL Url сервера получателя метрик по умолчанию
 	DefaultServerURL = "http://localhost:8080"
+
+	// DefaultHashKey ключ шифрования по умолчанию
+	DefaultHashKey = ""
 )
 
 // CliConfig конфигурация клиента из командной строки
@@ -23,6 +26,8 @@ type CliConfig struct {
 	ReportInterval int64 `env:"REPORT_INTERVAL"`
 	// ServerURL Url сервера получателя метрик
 	ServerURL string `env:"ADDRESS"`
+	// HashKey Ключ для шифрования
+	HashKey string `env:"KEY"`
 }
 
 // Params конфигурация приложения
@@ -34,6 +39,7 @@ func InitializeDefaultConfig() *CliConfig {
 		PollInterval:   DefaultPollInterval,
 		ReportInterval: DefaultReportInterval,
 		ServerURL:      DefaultServerURL,
+		HashKey:        DefaultHashKey,
 	}
 }
 
