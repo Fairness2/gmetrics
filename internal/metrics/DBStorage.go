@@ -473,11 +473,11 @@ func (storage *DBStorage) addCounters(counters map[string]Counter, clearAndSet b
 			logger.Log.Error(tErr)
 		}
 	}()
-	sql := "INSERT INTO t_counter (name, value) VALUES ($1, $2) on conflict (name) do update set value = t_counter.value + $2, updated_at = $3"
+	queryString := "INSERT INTO t_counter (name, value) VALUES ($1, $2) on conflict (name) do update set value = t_counter.value + $2, updated_at = $3"
 	if clearAndSet {
-		sql = "INSERT INTO t_counter (name, value) VALUES ($1, $2) on conflict (name) do update set value = $2, updated_at = $3"
+		queryString = "INSERT INTO t_counter (name, value) VALUES ($1, $2) on conflict (name) do update set value = $2, updated_at = $3"
 	}
-	prepared, err := tx.PrepareContext(storage.storeCtx, sql)
+	prepared, err := tx.PrepareContext(storage.storeCtx, queryString)
 	if err != nil {
 		return err
 	}
@@ -533,11 +533,11 @@ func (storage *DBStorage) clean() error {
 			logger.Log.Error(tErr)
 		}
 	}()
-	_, err = tx.ExecContext(storage.storeCtx, "DELETE FROM t_gauge")
+	_, err = tx.ExecContext(storage.storeCtx, "TRUNCATE TABLE t_gauge")
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(storage.storeCtx, "DELETE FROM t_counter")
+	_, err = tx.ExecContext(storage.storeCtx, "TRUNCATE TABLE t_counter")
 	if err != nil {
 		return err
 	}
