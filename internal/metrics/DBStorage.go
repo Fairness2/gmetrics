@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var StorageDatabaseClosed = errors.New("DB storage is already closed")
+var ErrorStorageDatabaseClosed = errors.New("DB storage is already closed")
 
 // SQLExecutor интерфейс с нужными функциями из sql.DB
 type SQLExecutor interface {
@@ -77,7 +77,7 @@ func (storage *DBStorage) SetGauge(name string, value Gauge) error {
 // syncGauge синхронизируем gauge в базу с повторными попытками сохранения
 func (storage *DBStorage) syncGauge(name string, value Gauge) (err error) {
 	if storage.close {
-		return StorageDatabaseClosed
+		return ErrorStorageDatabaseClosed
 	}
 	pause := time.Second
 	var pgErr *pgconn.PgError
@@ -120,7 +120,7 @@ func (storage *DBStorage) AddCounter(name string, value Counter) error {
 // syncCounter синхронизируем Counter в базу с повторными попытками сохранения
 func (storage *DBStorage) syncCounter(name string, value Counter) (err error) {
 	if storage.close {
-		return StorageDatabaseClosed
+		return ErrorStorageDatabaseClosed
 	}
 	pause := time.Second
 	var pgErr *pgconn.PgError
@@ -183,7 +183,7 @@ func (storage *DBStorage) GetGauge(name string) (g Gauge, ok bool) {
 func (storage *DBStorage) getGauge(name string) (Gauge, error) {
 	var value Gauge
 	if storage.close {
-		return value, StorageDatabaseClosed
+		return value, ErrorStorageDatabaseClosed
 	}
 	row := storage.db.QueryRowContext(storage.storeCtx, "SELECT value FROM t_gauge WHERE name = $1", name)
 	if err := row.Scan(&value); err != nil {
@@ -230,7 +230,7 @@ func (storage *DBStorage) GetCounter(name string) (c Counter, ok bool) {
 func (storage *DBStorage) getCounter(name string) (Counter, error) {
 	var value Counter
 	if storage.close {
-		return value, StorageDatabaseClosed
+		return value, ErrorStorageDatabaseClosed
 	}
 	row := storage.db.QueryRowContext(storage.storeCtx, "SELECT value FROM t_counter WHERE name = $1", name)
 	if err := row.Scan(&value); err != nil {
@@ -273,7 +273,7 @@ func (storage *DBStorage) GetGauges() (gauges map[string]Gauge, err error) {
 func (storage *DBStorage) getGauges() (map[string]Gauge, error) {
 	gauges := make(map[string]Gauge)
 	if storage.close {
-		return gauges, StorageDatabaseClosed
+		return gauges, ErrorStorageDatabaseClosed
 	}
 	rows, err := storage.db.QueryContext(storage.storeCtx, "SELECT name, value FROM t_gauge")
 	if err != nil {
@@ -334,7 +334,7 @@ func (storage *DBStorage) GetCounters() (counters map[string]Counter, err error)
 func (storage *DBStorage) getCounters() (map[string]Counter, error) {
 	counters := make(map[string]Counter)
 	if storage.close {
-		return counters, StorageDatabaseClosed
+		return counters, ErrorStorageDatabaseClosed
 	}
 	rows, err := storage.db.QueryContext(storage.storeCtx, "SELECT name, value FROM t_counter")
 	if err != nil {
@@ -378,7 +378,7 @@ func (storage *DBStorage) SetGauges(gauges map[string]Gauge) (err error) {
 // syncGauges запись в бд нескольких Gauge с ретраями
 func (storage *DBStorage) syncGauges(gauges map[string]Gauge) (err error) {
 	if storage.close {
-		return StorageDatabaseClosed
+		return ErrorStorageDatabaseClosed
 	}
 	pause := time.Second
 	var pgErr *pgconn.PgError
@@ -441,7 +441,7 @@ func (storage *DBStorage) AddCounters(counters map[string]Counter) (err error) {
 // syncCounters запись в бд нескольких Counter с ретраями
 func (storage *DBStorage) syncCounters(counters map[string]Counter, clearAndSet bool) (err error) {
 	if storage.close {
-		return StorageDatabaseClosed
+		return ErrorStorageDatabaseClosed
 	}
 	pause := time.Second
 	var pgErr *pgconn.PgError
@@ -498,7 +498,7 @@ func (storage *DBStorage) addCounters(counters map[string]Counter, clearAndSet b
 // restore восстанавливаем данные из базы данных
 func (storage *DBStorage) restore() error {
 	if storage.close {
-		return StorageDatabaseClosed
+		return ErrorStorageDatabaseClosed
 	}
 	gauges, err := storage.GetGauges()
 	if err != nil {
@@ -522,7 +522,7 @@ func (storage *DBStorage) restore() error {
 // clean удаляем данные из базы данных перед стартом без восстановления данных
 func (storage *DBStorage) clean() error {
 	if storage.close {
-		return StorageDatabaseClosed
+		return ErrorStorageDatabaseClosed
 	}
 	tx, err := storage.db.BeginTx(storage.storeCtx, nil)
 	if err != nil {
@@ -548,7 +548,7 @@ func (storage *DBStorage) clean() error {
 // Flush записываем данные в базу данных перед закрытием
 func (storage *DBStorage) Flush() error {
 	if storage.close {
-		return StorageDatabaseClosed
+		return ErrorStorageDatabaseClosed
 	}
 	gauges, err := storage.Storage.GetGauges()
 	if err != nil {
@@ -598,7 +598,7 @@ func (storage *DBStorage) Sync(ctx context.Context) error {
 // Close Закрытие хранилища
 func (storage *DBStorage) Close() error {
 	if storage.close {
-		return StorageDatabaseClosed
+		return ErrorStorageDatabaseClosed
 	}
 	storage.close = true
 	return nil
@@ -607,7 +607,7 @@ func (storage *DBStorage) Close() error {
 // FlushAndClose синхронизация данных и закрытие хранилища
 func (storage *DBStorage) FlushAndClose() error {
 	if storage.close {
-		return StorageDatabaseClosed
+		return ErrorStorageDatabaseClosed
 	}
 	if err := storage.Flush(); err != nil {
 		return err
