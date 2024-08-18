@@ -66,12 +66,7 @@ func GZIPCompressResponse(next http.Handler) http.Handler {
 // CheckSign проверка подписи запроса
 func CheckSign(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if config.Params.HashKey != "" {
-			hashHeader := r.Header.Get("HashSHA256")
-			if hashHeader == "" {
-				helpers.SetHTTPError(w, http.StatusBadRequest, []byte("missing hash header"))
-				return
-			}
+		if hashHeader := r.Header.Get("HashSHA256"); hashHeader != "" && config.Params.HashKey != "" {
 			hash, err := hex.DecodeString(hashHeader)
 			if err != nil {
 				helpers.SetHTTPError(w, http.StatusBadRequest, []byte(err.Error()))

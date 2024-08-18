@@ -54,7 +54,7 @@ func TestCheckSign(t *testing.T) {
 			desc:          "missing_hash_in_header",
 			hashKey:       "key",
 			body:          "request body",
-			expectedError: true,
+			expectedError: false,
 		},
 	}
 	config.Params = &config.CliConfig{}
