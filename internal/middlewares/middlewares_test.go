@@ -13,6 +13,7 @@ import (
 	"testing"
 )
 
+// hmacEncode создаём подпись запроса
 func hmacEncode(key, content string) string {
 	h := hmac.New(sha256.New, []byte(key))
 	h.Write([]byte(content))
@@ -20,6 +21,7 @@ func hmacEncode(key, content string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
+// TestCheckSign тест проверки подписи запроса
 func TestCheckSign(t *testing.T) {
 	testCases := []struct {
 		desc          string
@@ -63,9 +65,7 @@ func TestCheckSign(t *testing.T) {
 
 			router := chi.NewRouter()
 			router.Use(CheckSign)
-			router.Post("/", func(writer http.ResponseWriter, request *http.Request) {
-				return
-			})
+			router.Post("/", func(writer http.ResponseWriter, request *http.Request) {})
 			// запускаем тестовый сервер, будет выбран первый свободный порт
 			srv := httptest.NewServer(router)
 			// останавливаем сервер после завершения теста

@@ -132,18 +132,25 @@ func (c *Client) sendToServer(body []payload.Metrics) error {
 	// urlTemplate Шаблон урл: http://<АДРЕС_СЕРВЕРА>/update
 	var urlUpdateTemplate = "%s/updates"
 	sURL := fmt.Sprintf(urlUpdateTemplate, config.Params.ServerURL)
-
 	client := c.client.R().SetHeader("Content-Type", "application/json")
 
-	marshaledBody, comressed, err := c.getBody(body)
+	// Преобразуем тело в джейсон
+	marshaledBody, err := c.marshalBody(body)
 	if err != nil {
 		return err
 	}
-	client.SetBody(marshaledBody)
+
+	// Сжимаем тело
+	compressedBody, comressed, err := c.getBody(marshaledBody)
+	if err != nil {
+		return err
+	}
+	client.SetBody(compressedBody)
 	if comressed {
 		client.SetHeader("Content-Encoding", "gzip")
 	}
 
+	// Устанавливаем подпись тела
 	bodyHash, hashErr := c.hashBody(marshaledBody)
 	if hashErr != nil {
 		log.Println("Cant hash body", err)
@@ -202,17 +209,13 @@ func (c *Client) marshalBody(body []payload.Metrics) ([]byte, error) {
 // Функция также возвращает любую ошибку, возникшую во время упаковывания или сжатия.
 // Возвращаемый [] byte содержит тело, логическое значение указывает,
 // было ли сжатие успешным, а ошибка содержит любые обнаруженные ошибки.
-func (c *Client) getBody(body []payload.Metrics) ([]byte, bool, error) {
-	marshaledBody, err := c.marshalBody(body)
-	if err != nil {
-		return []byte{}, false, err
-	}
+func (c *Client) getBody(body []byte) ([]byte, bool, error) {
 	// Пробуем сжать тело
-	compressedBody, err := c.compressBody(marshaledBody)
+	compressedBody, err := c.compressBody(body)
 	if err != nil {
 		// Если не получилось, то ставим обычное боди
 		log.Println("Cant compress body", err)
-		return marshaledBody, false, nil
+		return body, false, nil
 	} else {
 		// Если получилось, то ставим заголовок о методе кодировки и ставим закодированное тело
 		return compressedBody, true, err

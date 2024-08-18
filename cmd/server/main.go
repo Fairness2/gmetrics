@@ -136,7 +136,6 @@ func getRouter() chi.Router {
 	router.Use(
 		cMiddleware.StripSlashes,          // Убираем лишние слеши
 		logger.LogRequests,                // Логируем данные запроса
-		middlewares.CheckSign,             // Проверка подписи тела
 		middlewares.GZIPCompressResponse,  // Сжимаем ответ TODO исключить для роутов, которые будут возвращать не application/json или text/html. Проверять в мидлваре или компрессоре может быть не эффективно,так как заголовок с контентом может быть поставлен позже записи контента
 		middlewares.GZIPDecompressRequest, // Разжимаем тело ответа
 	)
@@ -151,12 +150,17 @@ func getRouter() chi.Router {
 	router.Get("/ping", ping.Handler)
 
 	router.Group(func(r chi.Router) {
-		// Устанавилваем мидлваре с логированием запросов
+		// Устанавилваем мидлваре
 		r.Use(middlewares.JSONHeaders)
-		// Сохранение метрики с помощью JSON тела
-		r.Post("/update", handlemetric.JSONHandler)
-		// Сохранение метрик с помощью JSON тела
-		r.Post("/updates", handlemetric.JSONManyHandler)
+
+		router.Group(func(r chi.Router) {
+			// Устанавилваем мидлваре
+			r.Use(middlewares.CheckSign) // Проверка подписи тела
+			// Сохранение метрики с помощью JSON тела
+			r.Post("/update", handlemetric.JSONHandler)
+			// Сохранение метрик с помощью JSON тела
+			r.Post("/updates", handlemetric.JSONManyHandler)
+		})
 		// Получение отдельной метрики
 		r.Post("/value", getmetric.JSONHandler)
 	})
