@@ -22,6 +22,9 @@ const (
 
 	// DefaultDatabaseDSN подключение к базе данных
 	DefaultDatabaseDSN = "" //"postgresql://postgres:example@127.0.0.1:5432/gmetrics"
+
+	// DefaultHashKey ключ шифрования по умолчанию
+	DefaultHashKey = ""
 )
 
 // CliConfig конфигурация сервера из командной строки
@@ -33,6 +36,8 @@ type CliConfig struct {
 	Restore       bool   `env:"RESTORE"`        // Надобность загрузки старых данных из файла при включении
 	StoreInterval int64  `env:"STORE_INTERVAL"` // период сохранения метрик в файл; 0 - синхронный режим
 	DatabaseDSN   string `env:"DATABASE_DSN"`   // подключение к базе данных
+	// HashKey Ключ для шифрования
+	HashKey string `env:"KEY"`
 }
 
 // Params конфигурация приложения
@@ -47,6 +52,7 @@ func InitializeDefaultConfig() *CliConfig {
 		Restore:       DefaultRestore,
 		StoreInterval: int64(DefaultStoreInterval),
 		DatabaseDSN:   DefaultDatabaseDSN,
+		HashKey:       DefaultHashKey,
 	}
 }
 

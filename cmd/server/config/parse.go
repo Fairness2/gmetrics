@@ -50,6 +50,9 @@ func parseFromEnv(params *CliConfig) error {
 	if cnf.DatabaseDSN != "" {
 		params.DatabaseDSN = cnf.DatabaseDSN
 	}
+	if cnf.HashKey != "" {
+		params.HashKey = cnf.HashKey
+	}
 	return nil
 }
 
@@ -62,6 +65,7 @@ func parseFromCli(cnf *CliConfig) (parseError error) {
 	flag.StringVar(&cnf.DatabaseDSN, "d", DefaultDatabaseDSN, "database connection")
 	flag.Int64Var(&cnf.StoreInterval, "i", DefaultStoreInterval, "frequency of save metrics. 0 is sync mode")
 	flag.BoolVar(&cnf.Restore, "r", DefaultRestore, "need to restore")
+	flag.StringVar(&cnf.HashKey, "k", DefaultHashKey, "encrypted key")
 
 	// Парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse() // Сейчас будет выход из приложения, поэтому код ниже не будет исполнен, но может пригодиться в будущем, если поменять флаг выхода или будет несколько сетов

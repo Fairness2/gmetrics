@@ -136,6 +136,7 @@ func getRouter() chi.Router {
 	router.Use(
 		cMiddleware.StripSlashes,          // Убираем лишние слеши
 		logger.LogRequests,                // Логируем данные запроса
+		middlewares.CheckSign,             // Проверка подписи тела
 		middlewares.GZIPCompressResponse,  // Сжимаем ответ TODO исключить для роутов, которые будут возвращать не application/json или text/html. Проверять в мидлваре или компрессоре может быть не эффективно,так как заголовок с контентом может быть поставлен позже записи контента
 		middlewares.GZIPDecompressRequest, // Разжимаем тело ответа
 	)

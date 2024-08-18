@@ -44,9 +44,7 @@ func parseFromEnv(params *CliConfig) error {
 		}
 	}
 	if cnf.HashKey != "" {
-		if err = setServerURL(cnf.HashKey, params); err != nil {
-			return err
-		}
+		params.HashKey = cnf.HashKey
 	}
 
 	return nil

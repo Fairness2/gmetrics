@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -147,7 +148,7 @@ func (c *Client) sendToServer(body []payload.Metrics) error {
 	if hashErr != nil {
 		log.Println("Cant hash body", err)
 	} else {
-		client.SetHeader("HashSHA256", string(bodyHash))
+		client.SetHeader("HashSHA256", bodyHash)
 	}
 
 	// Отправляем запрос
@@ -219,11 +220,11 @@ func (c *Client) getBody(body []payload.Metrics) ([]byte, bool, error) {
 }
 
 // hashBody создаём подпись запроса
-func (c *Client) hashBody(body []byte) ([]byte, error) {
+func (c *Client) hashBody(body []byte) (string, error) {
 	if config.Params.HashKey == "" {
-		return body, errors.New("hash key is empty")
+		return "", errors.New("hash key is empty")
 	}
 	harsher := hmac.New(sha256.New, []byte(config.Params.HashKey))
 	harsher.Write(body)
-	return harsher.Sum(nil), nil
+	return hex.EncodeToString(harsher.Sum(nil)), nil
 }
