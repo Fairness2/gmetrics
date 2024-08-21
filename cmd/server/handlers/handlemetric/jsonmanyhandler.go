@@ -2,6 +2,7 @@ package handlemetric
 
 import (
 	"encoding/json"
+	"errors"
 	"gmetrics/internal/helpers"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/payload"
@@ -19,7 +20,7 @@ func JSONManyHandler(response http.ResponseWriter, request *http.Request) {
 	rawBody, err := io.ReadAll(request.Body)
 	if err != nil {
 		logger.Log.Error(err)
-		helpers.SetHTTPError(response, BadRequestError.HTTPStatus, helpers.GetErrorJSONBody(BadRequestError.Error()))
+		helpers.SetHTTPResponse(response, BadRequestError.HTTPStatus, helpers.GetErrorJSONBody(BadRequestError.Error()))
 		return
 	}
 	// Парсим тело в структуру запроса
@@ -27,17 +28,26 @@ func JSONManyHandler(response http.ResponseWriter, request *http.Request) {
 	err = json.Unmarshal(rawBody, &body)
 	if err != nil {
 		logger.Log.Infow("Bad request for update metric", "error", err, "body", string(rawBody))
-		helpers.SetHTTPError(response, BadRequestError.HTTPStatus, helpers.GetErrorJSONBody(BadRequestError.Error()))
+		helpers.SetHTTPResponse(response, BadRequestError.HTTPStatus, helpers.GetErrorJSONBody(BadRequestError.Error()))
 		return
 	}
-	responseMessage, uError := updateMetricsByRequestBody(body)
+	var metricErr *UpdateMetricError
+	uError := updateMetricsByRequestBody(body)
 	if uError != nil {
-		helpers.SetHTTPError(response, uError.HTTPStatus, helpers.GetErrorJSONBody(uError.Error()))
+		if errors.As(uError, &metricErr) {
+			helpers.SetHTTPResponse(response, metricErr.HTTPStatus, helpers.GetErrorJSONBody(metricErr.Error()))
+		} else {
+			helpers.SetHTTPResponse(response, http.StatusInternalServerError, helpers.GetErrorJSONBody(uError.Error()))
+		}
 		return
 	}
-	rBody, rError := createEmptyResponse(responseMessage)
+	rBody, rError := createEmptyResponse("Metrics successfully updated.")
 	if rError != nil {
-		helpers.SetHTTPError(response, rError.HTTPStatus, helpers.GetErrorJSONBody(rError.Error()))
+		if errors.As(rError, &metricErr) {
+			helpers.SetHTTPResponse(response, metricErr.HTTPStatus, helpers.GetErrorJSONBody(metricErr.Error()))
+		} else {
+			helpers.SetHTTPResponse(response, http.StatusInternalServerError, helpers.GetErrorJSONBody(rError.Error()))
+		}
 		return
 	}
 	response.WriteHeader(http.StatusOK)
@@ -48,7 +58,7 @@ func JSONManyHandler(response http.ResponseWriter, request *http.Request) {
 }
 
 // createEmptyResponse создаём тело для ответа
-func createEmptyResponse(responseMessage string) ([]byte, *UpdateMetricError) {
+func createEmptyResponse(responseMessage string) ([]byte, error) {
 	rBody := payload.ResponseBody{
 		Status:  payload.ResponseSuccessStatus,
 		Message: responseMessage,

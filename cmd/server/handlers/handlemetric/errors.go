@@ -11,6 +11,14 @@ type UpdateMetricError struct {
 	HTTPStatus int
 }
 
+func (e *UpdateMetricError) Error() string {
+	return e.error.Error()
+}
+
+func (e *UpdateMetricError) Unwrap() error {
+	return nil
+}
+
 /*func (er UpdateMetricError) Error() string {
 	return er.Message
 }*/

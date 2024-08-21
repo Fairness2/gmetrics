@@ -20,7 +20,7 @@ func JSONHandler(response http.ResponseWriter, request *http.Request) {
 	rawBody, err := io.ReadAll(request.Body)
 	if err != nil {
 		logger.Log.Error(err)
-		helpers.SetHTTPError(response, http.StatusBadRequest, helpers.GetErrorJSONBody(err.Error()))
+		helpers.SetHTTPResponse(response, http.StatusBadRequest, helpers.GetErrorJSONBody(err.Error()))
 		return
 	}
 	// Парсим тело в структуру запроса
@@ -28,7 +28,7 @@ func JSONHandler(response http.ResponseWriter, request *http.Request) {
 	err = json.Unmarshal(rawBody, &body)
 	if err != nil {
 		logger.Log.Infow("Bad request for get metric", "error", err, "body", string(rawBody))
-		helpers.SetHTTPError(response, http.StatusBadRequest, helpers.GetErrorJSONBody("Bad request for get metric"))
+		helpers.SetHTTPResponse(response, http.StatusBadRequest, helpers.GetErrorJSONBody("Bad request for get metric"))
 		return
 	}
 	switch body.MType {
@@ -56,7 +56,7 @@ func JSONHandler(response http.ResponseWriter, request *http.Request) {
 	jsonResponse, err := json.Marshal(body)
 	if err != nil {
 		logger.Log.Infow("Bad request for get metric", "error", err, "body", string(rawBody))
-		helpers.SetHTTPError(response, http.StatusInternalServerError, helpers.GetErrorJSONBody(err.Error()))
+		helpers.SetHTTPResponse(response, http.StatusInternalServerError, helpers.GetErrorJSONBody(err.Error()))
 		return
 	}
 	response.WriteHeader(http.StatusOK)

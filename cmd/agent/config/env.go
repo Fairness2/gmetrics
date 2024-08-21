@@ -1,18 +1,17 @@
 package config
 
-import (
-	"fmt"
-)
-
 const (
 	// DefaultPollInterval Интервал между сборкой данных по умолчанию
-	DefaultPollInterval = 2
+	DefaultPollInterval int64 = 2
 
 	// DefaultReportInterval Интервал между отправкой данных по умолчанию
-	DefaultReportInterval = 10
+	DefaultReportInterval int64 = 10
 
 	// DefaultServerURL Url сервера получателя метрик по умолчанию
 	DefaultServerURL = "http://localhost:8080"
+
+	// DefaultLogLevel Уровень логирования по умолчанию
+	DefaultLogLevel = "info"
 
 	// DefaultHashKey ключ шифрования по умолчанию
 	DefaultHashKey = ""
@@ -26,6 +25,8 @@ type CliConfig struct {
 	ReportInterval int64 `env:"REPORT_INTERVAL"`
 	// ServerURL Url сервера получателя метрик
 	ServerURL string `env:"ADDRESS"`
+	// Уровень логирования
+	LogLevel string `env:"LOG_LEVEL"`
 	// HashKey Ключ для шифрования
 	HashKey string `env:"KEY"`
 }
@@ -39,14 +40,7 @@ func InitializeDefaultConfig() *CliConfig {
 		PollInterval:   DefaultPollInterval,
 		ReportInterval: DefaultReportInterval,
 		ServerURL:      DefaultServerURL,
+		LogLevel:       DefaultLogLevel,
 		HashKey:        DefaultHashKey,
 	}
-}
-
-// PrintConfig возвращает строку с информацией о текущей конфигурации сервера и интервалах сбора метрик и отправки метрик.
-// Server Address: <адрес сервера>
-// Frequency of metrics collection: <интервал сбора метрик> s.
-// Frequency of sending metrics: <интервал отправки метрик> s.
-func PrintConfig(cnf *CliConfig) string {
-	return fmt.Sprintf("Server Address: %s\nFrequency of metrics collection: %d s.\nFrequency of sending metrics: %d s.\n", cnf.ServerURL, cnf.PollInterval, cnf.ReportInterval)
 }

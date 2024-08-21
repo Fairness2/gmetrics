@@ -31,23 +31,17 @@ func main() {
 		log.Fatal(err)
 	}
 	config.Params = cnf
-	wg := new(errgroup.Group)
-	//wg := sync.WaitGroup{} // Группа для синхронизации
 
 	// стартуем приложение
-	if err = runApplication(wg); err != nil {
+	if err = runApplication(); err != nil {
 		logger.Log.Error(err)
 	}
 
-	// Ожидаем завершения всех горутин перед завершением программы
-	if err = wg.Wait(); err != nil {
-		logger.Log.Error(err)
-	}
 	logger.Log.Info("End program")
 }
 
 // runApplication производим старт приложения
-func runApplication(wg *errgroup.Group) error {
+func runApplication() error {
 	ctx, cancel := context.WithCancel(context.Background()) // Контекст для правильной остановки синхронизации
 	defer func() {
 		logger.Log.Info("Cancel context")
@@ -70,11 +64,30 @@ func runApplication(wg *errgroup.Group) error {
 
 	// Вызываем функцию закрытия
 	defer closeStorage()
+	wg := new(errgroup.Group)
+	//wg := sync.WaitGroup{} // Группа для синхронизации
 	// Инициализируем хранилище
-	InitStore(ctx, wg)
+	InitStore(ctx)
+	// Запускаем синхронизацию хранилища, если оно это подразумевает
+	if st, ok := metrics.MeStore.(metrics.SynchronizationStorage); ok {
+		ctx = context.WithValue(ctx, contextkeys.SyncInterval, config.Params.StoreInterval)
+		// Запускаем синхронизацию в файл
+		if !st.IsSyncMode() {
+			wg.Go(func() error {
+				return st.Sync(ctx)
+			})
+		}
+	}
 
-	server := run(wg)
-
+	server := initServer()
+	// Запускаем сервер
+	wg.Go(func() error {
+		sErr := server.ListenAndServe()
+		if sErr != nil && !errors.Is(sErr, http.ErrServerClosed) {
+			return sErr
+		}
+		return nil
+	})
 	// Регистрируем прослушиватель для закрытия записи в файл и завершения сервера
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
@@ -85,12 +98,16 @@ func runApplication(wg *errgroup.Group) error {
 		return err
 	}
 
+	// Ожидаем завершения всех горутин перед завершением программы
+	if err = wg.Wait(); err != nil {
+		logger.Log.Error(err)
+	}
 	return nil
 }
 
 // closeStorage функция закрытия хранилища
 func closeStorage() {
-	st, ok := metrics.MeStore.(*metrics.DurationFileStorage)
+	st, ok := metrics.MeStore.(metrics.SynchronizationStorage)
 	if !ok {
 		return
 	}
@@ -102,19 +119,13 @@ func closeStorage() {
 }
 
 // run запуск сервера
-func run(wg *errgroup.Group) *http.Server {
+func initServer() *http.Server {
 	logger.Log.Infof("Running server on %s", config.Params.Address)
 	server := http.Server{
 		Addr:    config.Params.Address,
 		Handler: getRouter(),
 	}
-	wg.Go(func() error {
-		sErr := server.ListenAndServe()
-		if sErr != nil && !errors.Is(sErr, http.ErrServerClosed) {
-			return sErr
-		}
-		return nil
-	})
+
 	return &server
 }
 
@@ -168,11 +179,11 @@ func getRouter() chi.Router {
 }
 
 // InitStore устанавливаем глобальное хранилище метрик.
-func InitStore(ctx context.Context, wg *errgroup.Group) {
+func InitStore(ctx context.Context) {
 	// Если указан путь к файлу, то будет создано хранилище с сохранением в файл, иначе будет создано хранилище в памяти
 	if config.Params.DatabaseDSN != "" {
 		logger.Log.Info("Set database store")
-		store, err := metrics.NewDBStorage(ctx, database.DB)
+		store, err := metrics.NewDBStorage(ctx, database.DB, config.Params.Restore, config.Params.StoreInterval == 0)
 		if err != nil {
 			logger.Log.Fatal(err)
 		}
@@ -184,13 +195,6 @@ func InitStore(ctx context.Context, wg *errgroup.Group) {
 			logger.Log.Fatal(err)
 		}
 		metrics.MeStore = store
-		ctx = context.WithValue(ctx, contextkeys.SyncInterval, config.Params.StoreInterval)
-		// Запускаем синхронизацию в файл
-		if !store.SyncMode {
-			wg.Go(func() error {
-				return store.Sync(ctx)
-			})
-		}
 	} else {
 		logger.Log.Info("Set in-memory store")
 		metrics.MeStore = metrics.NewMemStorage()

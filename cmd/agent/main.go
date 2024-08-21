@@ -5,6 +5,8 @@ import (
 	"gmetrics/cmd/agent/collector/collection"
 	"gmetrics/cmd/agent/collector/sender"
 	"gmetrics/cmd/agent/config"
+	"gmetrics/internal/logger"
+	"go.uber.org/zap"
 	"log"
 	"os"
 	"os/signal"
@@ -20,7 +22,17 @@ func main() {
 		log.Fatal(err)
 	}
 	config.Params = cnf
-	log.Print(config.PrintConfig(cnf))
+	_, err = InitLogger()
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Показываем конфигурацию агента
+	logger.Log.Infow("Running agent with configuration",
+		"poll interval", config.Params.PollInterval,
+		"logLevel", config.Params.LogLevel,
+		"server url", config.Params.ServerURL,
+		"report interval", config.Params.ReportInterval,
+	)
 
 	// Создаём новую коллекцию метрик и устанавливаем её глобально
 	collection.Collection = collection.NewCollection()
@@ -37,7 +49,7 @@ func main() {
 
 	// Запускаем отправку данных
 	client := sender.New(collection.Collection)
-	log.Println("New sender client created")
+	logger.Log.Info("New sender client created")
 	go func() {
 		client.PeriodicSender(ctx)
 		defer wg.Done()
@@ -51,7 +63,18 @@ func main() {
 	case <-ctx.Done():
 		// continue
 	}
-	log.Println("Agent is stopping")
+	logger.Log.Info("Agent is stopping")
 	wg.Wait() // Ожидаем завершения всех горутин
-	log.Println("Agent stopped")
+	logger.Log.Infow("Agent stopped")
+}
+
+// InitLogger инициализируем логер
+func InitLogger() (*zap.SugaredLogger, error) {
+	lgr, err := logger.New(config.Params.LogLevel)
+	if err != nil {
+		return nil, err
+	}
+	logger.Log = lgr
+
+	return lgr, nil
 }

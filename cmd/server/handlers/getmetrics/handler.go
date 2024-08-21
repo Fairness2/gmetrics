@@ -59,14 +59,14 @@ func Handler(response http.ResponseWriter, request *http.Request) {
 	var buff bytes.Buffer                         // Создание буфера для сохранения результата побработки шаблона
 	err := t.ExecuteTemplate(&buff, "base", data) // Подключение шиблона к странице
 	if err != nil {
-		helpers.SetHTTPError(response, http.StatusInternalServerError, []byte(err.Error()))
+		helpers.SetHTTPResponse(response, http.StatusInternalServerError, []byte(err.Error()))
 		return
 	}
 	response.Header().Set("Content-Type", "text/html; charset=utf-8")
 	// Вывод буферизированного ответа
 	_, err = response.Write(buff.Bytes())
 	if err != nil {
-		helpers.SetHTTPError(response, http.StatusInternalServerError, []byte(err.Error()))
+		helpers.SetHTTPResponse(response, http.StatusInternalServerError, []byte(err.Error()))
 		return
 	}
 }

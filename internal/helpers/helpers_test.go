@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"github.com/stretchr/testify/assert"
+	"gmetrics/internal/logger"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -44,9 +45,13 @@ func TestSetHTTPError(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			response := httptest.NewRecorder()
-			SetHTTPError(response, c.mockStatus, []byte(c.mockMessage))
+			SetHTTPResponse(response, c.mockStatus, []byte(c.mockMessage))
 			result := response.Result()
-			defer result.Body.Close()
+			defer func() {
+				if cErr := result.Body.Close(); cErr != nil {
+					logger.Log.Warn(cErr)
+				}
+			}()
 
 			assert.Equal(t, c.mockStatus, result.StatusCode)
 			body, err := io.ReadAll(result.Body)

@@ -7,18 +7,9 @@ type MemStorage struct {
 	Gauge   map[string]Gauge   `json:"gauge"`
 	Counter map[string]Counter `json:"counter"`
 	mutex   *sync.RWMutex
-	//metrics map[string]any
 }
 
-// Set Установка значения метрики в хранилище
-// Parameters:
-//
-//	name: the name of the metric
-//	value: the value to be stored for the metric
-/*func (storage *MemStorage) Set(name string, value any) {
-	storage.metrics[name] = value
-}*/
-
+// SetGauge устанавливаем gauge
 func (storage *MemStorage) SetGauge(name string, value Gauge) error {
 	storage.mutex.Lock()
 	defer storage.mutex.Unlock()
@@ -26,6 +17,7 @@ func (storage *MemStorage) SetGauge(name string, value Gauge) error {
 	return nil
 }
 
+// AddCounter добавляем каунтер
 func (storage *MemStorage) AddCounter(name string, value Counter) error {
 	storage.mutex.Lock()
 	defer storage.mutex.Unlock()
@@ -37,15 +29,7 @@ func (storage *MemStorage) AddCounter(name string, value Counter) error {
 	return nil
 }
 
-// Get Получение значения метрики из хранилища
-// Parameters:
-//
-//	name: имя метрики
-//
-// Returns:
-//
-//	value: значение метрики
-//	ok: флаг, указывающий на наличие метрики в хранилище
+// GetGauge получение отдельного gauge
 func (storage *MemStorage) GetGauge(name string) (Gauge, bool) {
 	storage.mutex.RLock()
 	defer storage.mutex.RUnlock()
@@ -53,6 +37,7 @@ func (storage *MemStorage) GetGauge(name string) (Gauge, bool) {
 	return value, ok
 }
 
+// GetCounter получение отдельного counter
 func (storage *MemStorage) GetCounter(name string) (Counter, bool) {
 	storage.mutex.RLock()
 	defer storage.mutex.RUnlock()
@@ -60,6 +45,7 @@ func (storage *MemStorage) GetCounter(name string) (Counter, bool) {
 	return cValue, ok
 }
 
+// NewMemStorage создание нового хранилища в памяти
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
 		//metrics: make(map[string]any),
@@ -69,12 +55,14 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
+// GetGauges получение всех gauge
 func (storage *MemStorage) GetGauges() (map[string]Gauge, error) {
 	storage.mutex.RLock()
 	defer storage.mutex.RUnlock()
 	return storage.Gauge, nil
 }
 
+// GetCounters получение всех counter
 func (storage *MemStorage) GetCounters() (map[string]Counter, error) {
 	storage.mutex.RLock()
 	defer storage.mutex.RUnlock()

@@ -43,6 +43,9 @@ func parseFromEnv(params *CliConfig) error {
 			return err
 		}
 	}
+	if cnf.LogLevel != "" {
+		params.LogLevel = cnf.LogLevel
+	}
 	if cnf.HashKey != "" {
 		params.HashKey = cnf.HashKey
 	}
@@ -60,6 +63,7 @@ func parseFromCli(cnf *CliConfig) error {
 	})
 	flag.Int64Var(&cnf.PollInterval, "p", DefaultPollInterval, "frequency of metrics collection")
 	flag.Int64Var(&cnf.ReportInterval, "r", DefaultReportInterval, "frequency of sending metrics")
+	flag.StringVar(&cnf.LogLevel, "ll", DefaultLogLevel, "level of logging")
 	flag.StringVar(&cnf.HashKey, "k", DefaultHashKey, "encrypted key")
 
 	// Парсим переданные серверу аргументы в зарегистрированные переменные

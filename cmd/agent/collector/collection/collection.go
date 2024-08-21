@@ -1,8 +1,8 @@
 package collection
 
 import (
+	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
-	"log"
 	"math/rand/v2"
 	"runtime"
 	"sync"
@@ -22,7 +22,7 @@ type Type struct {
 
 // Collect Заполнение коллекции из метрик системы
 func (c *Type) Collect(stats runtime.MemStats) {
-	log.Println("Collecting metrics...")
+	logger.Log.Info("Collecting metrics...")
 	// Использование мьютекса предотвращает попытки одновременной записи в коллекцию
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -58,7 +58,7 @@ func (c *Type) Collect(stats runtime.MemStats) {
 	c.PollCount = c.PollCount.Add(1)
 	c.Values["RandomValue"] = metrics.Gauge(rand.Float64())
 
-	log.Println("End collecting metrics")
+	logger.Log.Info("End collecting metrics")
 }
 
 // Lock Установка лока на изменение

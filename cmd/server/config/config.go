@@ -1,9 +1,5 @@
 package config
 
-import (
-	"fmt"
-)
-
 const (
 	// DefaultServerURL Url сервера получателя метрик по умолчанию
 	DefaultServerURL = "localhost:8080"
@@ -15,7 +11,7 @@ const (
 	DefaultFilePath = "storage.json"
 
 	// DefaultStoreInterval период сохранения метрик в файл по умолчанию
-	DefaultStoreInterval = 300
+	DefaultStoreInterval int64 = 300
 
 	// DefaultRestore надобность загрузки старых данных из файла при включении
 	DefaultRestore = false
@@ -50,13 +46,8 @@ func InitializeDefaultConfig() *CliConfig {
 		LogLevel:      DefaultLogLevel,
 		FileStorage:   DefaultFilePath,
 		Restore:       DefaultRestore,
-		StoreInterval: int64(DefaultStoreInterval),
+		StoreInterval: DefaultStoreInterval,
 		DatabaseDSN:   DefaultDatabaseDSN,
 		HashKey:       DefaultHashKey,
 	}
-}
-
-// PrintConfig возвращает строку с информацией о текущей конфигурации сервера и интервалах сбора метрик и отправки метрик.
-func PrintConfig(cnf *CliConfig) string {
-	return fmt.Sprintf("Server Address: %s, Log level: %s\n", cnf.Address, cnf.LogLevel)
 }
