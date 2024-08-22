@@ -1,9 +1,9 @@
 package handlemetric
 
 import (
-	"fmt"
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/payload"
+	"net/http"
 	"strconv"
 )
 
@@ -31,26 +31,34 @@ import (
 //
 // If the metricType is neither "gauge" nor "counter", an UpdateMetricError
 // with the message "invalid metric type" and an HTTP status code of http.StatusBadRequest will be returned.
-func updateMetricByStringValue(metricType, metricName, metricValue string) (string, *UpdateMetricError) {
+func updateMetricByStringValue(metricType, metricName, metricValue string) error {
 	switch metricType {
 	case metrics.TypeGauge:
 		convertedValue, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
 			//log.Println(err)
-			return "", NotValidGaugeError
+			return NotValidGaugeError
 		}
-		metrics.MeStore.SetGauge(metricName, metrics.Gauge(convertedValue))
-		return fmt.Sprintf("metric %s successfully set", metricName), nil
+		err = metrics.MeStore.SetGauge(metricName, metrics.Gauge(convertedValue))
+		if err != nil {
+			//log.Println(err)
+			return &UpdateMetricError{err, http.StatusInternalServerError}
+		}
+		return nil
 	case metrics.TypeCounter:
 		convertedValue, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
 			//log.Println(err)
-			return "", NotValidCounterError
+			return NotValidCounterError
 		}
-		metrics.MeStore.AddCounter(metricName, metrics.Counter(convertedValue))
-		return fmt.Sprintf("metric %s successfully add", metricName), nil
+		err = metrics.MeStore.AddCounter(metricName, metrics.Counter(convertedValue))
+		if err != nil {
+			//log.Println(err)
+			return &UpdateMetricError{err, http.StatusInternalServerError}
+		}
+		return nil
 	default:
-		return "", InvalidMetricTypeError
+		return InvalidMetricTypeError
 	}
 }
 
@@ -61,32 +69,82 @@ func updateMetricByStringValue(metricType, metricName, metricValue string) (stri
 // - body: the request body containing the metric information
 //
 // Returns:
-// - success message and nil error if the metric is updated successfully
 // - empty string and UpdateMetricError if there is an error updating the metric
 //
 // UpdateMetricError is a custom error type that contains an error message and an HTTP status code.
-func updateMetricByRequestBody(body payload.Metrics) (string, *UpdateMetricError) {
+func updateMetricByRequestBody(body payload.Metrics) error {
 	if body.ID == "" {
-		return "", BadRequestError
+		return BadRequestError
 	}
 
-	var responseMessage string
 	switch body.MType {
 	case metrics.TypeGauge:
 		if body.Value == nil {
-			return "", BadRequestError
+			return BadRequestError
 		}
-		metrics.MeStore.SetGauge(body.ID, metrics.Gauge(*body.Value))
-		responseMessage = fmt.Sprintf("metric %s successfully set", body.ID)
+		err := metrics.MeStore.SetGauge(body.ID, metrics.Gauge(*body.Value))
+		if err != nil {
+			//log.Println(err)
+			return &UpdateMetricError{err, http.StatusInternalServerError}
+		}
 	case metrics.TypeCounter:
 		if body.Delta == nil {
-			return "", BadRequestError
+			return BadRequestError
 		}
-		metrics.MeStore.AddCounter(body.ID, metrics.Counter(*body.Delta))
-		responseMessage = fmt.Sprintf("metric %s successfully add", body.ID)
+		err := metrics.MeStore.AddCounter(body.ID, metrics.Counter(*body.Delta))
+		if err != nil {
+			//log.Println(err)
+			return &UpdateMetricError{err, http.StatusInternalServerError}
+		}
 	default:
-		return "", InvalidMetricTypeError
+		return InvalidMetricTypeError
 	}
 
-	return responseMessage, nil
+	return nil
+}
+
+func updateMetricsByRequestBody(bodies []payload.Metrics) error {
+	var (
+		gauges   = make(map[string]metrics.Gauge)
+		counters = make(map[string]metrics.Counter)
+	)
+
+	for _, body := range bodies {
+		if body.ID == "" {
+			return BadRequestError
+		}
+
+		switch body.MType {
+		case metrics.TypeGauge:
+			if body.Value == nil {
+				return BadRequestError
+			}
+			gauges[body.ID] = metrics.Gauge(*body.Value)
+		case metrics.TypeCounter:
+			if body.Delta == nil {
+				return BadRequestError
+			}
+			var newValue metrics.Counter
+			val, ok := counters[body.ID]
+			if ok {
+				newValue = val.Add(metrics.Counter(*body.Delta))
+			} else {
+				newValue = metrics.Counter(*body.Delta)
+			}
+			counters[body.ID] = newValue
+		default:
+			return InvalidMetricTypeError
+		}
+	}
+
+	err := metrics.MeStore.SetGauges(gauges)
+	if err != nil {
+		return &UpdateMetricError{err, http.StatusInternalServerError}
+	}
+	err = metrics.MeStore.AddCounters(counters)
+	if err != nil {
+		return &UpdateMetricError{err, http.StatusInternalServerError}
+	}
+
+	return nil
 }

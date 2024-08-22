@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestJSONHandler(t *testing.T) {
+func TestJSONManyHandler(t *testing.T) {
 	tests := []struct {
 		name            string
 		body            string
@@ -19,49 +19,49 @@ func TestJSONHandler(t *testing.T) {
 	}{
 		{
 			name:            "empty_type",
-			body:            `{"id":"someName","type":"","value":123}`,
+			body:            `[{"id":"someName","type":"","value":123}]`,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
 		},
 		{
 			name:            "empty_name",
-			body:            `{"id":"","type":"gauge","value":123}`,
+			body:            `[{"id":"","type":"gauge","value":123}]`,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
 		},
 		{
 			name:            "empty_value",
-			body:            `{"id":"someName","type":"gauge"}`,
+			body:            `[{"id":"someName","type":"gauge"}]`,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
 		},
 		{
 			name:            "wrong_type",
-			body:            `{"id":"someName","type":"aboba","value":123}`,
+			body:            `[{"id":"someName","type":"aboba","value":123}]`,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
 		},
 		{
 			name:            "wrong_value_gauge",
-			body:            `{"id":"someName","type":"gauge","value":"some"}`,
+			body:            `[{"id":"someName","type":"gauge","value":"some"}]`,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
 		},
 		{
 			name:            "wrong_value_count",
-			body:            `{"id":"someName","type":"counter","delta":"some"}`,
+			body:            `[{"id":"someName","type":"counter","delta":"some"}]`,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
 		},
 		{
 			name:            "right_value_gauge",
-			body:            `{"id":"someName","type":"gauge","value":56.78}`,
+			body:            `[{"id":"someName","type":"gauge","value":56.78}]`,
 			wantStatus:      http.StatusOK,
 			wantContentType: "application/json",
 		},
 		{
 			name:            "right_value_count",
-			body:            `{"id":"someName","type":"counter","delta":5}`,
+			body:            `[{"id":"someName","type":"counter","delta":5}]`,
 			wantStatus:      http.StatusOK,
 			wantContentType: "application/json",
 		},
@@ -72,7 +72,7 @@ func TestJSONHandler(t *testing.T) {
 	storage := metrics.NewMemStorage()
 	metrics.MeStore = storage
 
-	router.Post("/update", JSONHandler)
+	router.Post("/updates", JSONManyHandler)
 	// запускаем тестовый сервер, будет выбран первый свободный порт
 	srv := httptest.NewServer(router)
 	// останавливаем сервер после завершения теста
@@ -83,7 +83,7 @@ func TestJSONHandler(t *testing.T) {
 			request := resty.New().R()
 			request.Method = http.MethodPost
 			request.Body = test.body
-			request.URL = srv.URL + "/update"
+			request.URL = srv.URL + "/updates"
 
 			res, err := request.Send()
 			assert.NoError(t, err, "error making HTTP request")

@@ -56,7 +56,7 @@ func TestSendMetric(t *testing.T) {
 	tests := []struct {
 		name          string
 		setupMock     func() *httptest.Server
-		body          func() payload.Metrics
+		body          func() []payload.Metrics
 		metricType    string
 		metricName    string
 		metricValue   string
@@ -69,14 +69,14 @@ func TestSendMetric(t *testing.T) {
 					responseWriter.WriteHeader(http.StatusOK)
 				}))
 			},
-			body: func() payload.Metrics {
+			body: func() []payload.Metrics {
 				var val float64 = 10
-				return payload.Metrics{
+				return []payload.Metrics{{
 					ID:    "TestMetric",
 					MType: metrics.TypeGauge,
 					Delta: nil,
 					Value: &val,
-				}
+				}}
 			},
 			expectedError: false,
 		},
@@ -87,14 +87,14 @@ func TestSendMetric(t *testing.T) {
 					responseWriter.WriteHeader(http.StatusBadRequest)
 				}))
 			},
-			body: func() payload.Metrics {
+			body: func() []payload.Metrics {
 				var val float64 = 10
-				return payload.Metrics{
+				return []payload.Metrics{{
 					ID:    "TestMetric",
 					MType: metrics.TypeGauge,
 					Delta: nil,
 					Value: &val,
-				}
+				}}
 			},
 			expectedError: true,
 		},
@@ -105,14 +105,14 @@ func TestSendMetric(t *testing.T) {
 					responseWriter.WriteHeader(http.StatusNotFound)
 				}))
 			},
-			body: func() payload.Metrics {
+			body: func() []payload.Metrics {
 				var val float64 = 10
-				return payload.Metrics{
+				return []payload.Metrics{{
 					ID:    "TestMetric",
 					MType: metrics.TypeGauge,
 					Delta: nil,
 					Value: &val,
-				}
+				}}
 			},
 			expectedError: true,
 		},
@@ -127,7 +127,7 @@ func TestSendMetric(t *testing.T) {
 			defer mockServer.Close()
 
 			c := New(getMockCollection())
-			err := c.sendMetric(tc.body())
+			err := c.sendToServer(tc.body())
 			if tc.expectedError {
 				assert.Error(t, err)
 			} else {

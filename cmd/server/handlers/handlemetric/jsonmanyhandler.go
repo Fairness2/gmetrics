@@ -3,21 +3,19 @@ package handlemetric
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"gmetrics/internal/helpers"
 	"gmetrics/internal/logger"
-	"gmetrics/internal/metrics"
 	"gmetrics/internal/payload"
 	"io"
 	"net/http"
 )
 
-// JSONHandler Обработка запроса установки метрики через пост запрос с телом
+// JSONHandler Обработка запроса установки множества метрик через пост запрос с телом
 //
 // Parameters:
 // - response: http.ResponseWriter объект, содержащий информацию о ответе HTTP
 // - request: http.Request объект, содержащий информацию о запросе HTTP
-func JSONHandler(response http.ResponseWriter, request *http.Request) {
+func JSONManyHandler(response http.ResponseWriter, request *http.Request) {
 	// Читаем тело запроса
 	rawBody, err := io.ReadAll(request.Body)
 	if err != nil {
@@ -26,7 +24,7 @@ func JSONHandler(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 	// Парсим тело в структуру запроса
-	var body payload.Metrics
+	var body []payload.Metrics
 	err = json.Unmarshal(rawBody, &body)
 	if err != nil {
 		logger.Log.Infow("Bad request for update metric", "error", err, "body", string(rawBody))
@@ -34,7 +32,7 @@ func JSONHandler(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 	var metricErr *UpdateMetricError
-	uError := updateMetricByRequestBody(body)
+	uError := updateMetricsByRequestBody(body)
 	if uError != nil {
 		if errors.As(uError, &metricErr) {
 			helpers.SetHTTPResponse(response, metricErr.HTTPStatus, helpers.GetErrorJSONBody(metricErr.Error()))
@@ -43,7 +41,7 @@ func JSONHandler(response http.ResponseWriter, request *http.Request) {
 		}
 		return
 	}
-	rBody, rError := createResponse(body, fmt.Sprintf("metric %s successfully add", body.ID))
+	rBody, rError := createEmptyResponse("Metrics successfully updated.")
 	if rError != nil {
 		if errors.As(rError, &metricErr) {
 			helpers.SetHTTPResponse(response, metricErr.HTTPStatus, helpers.GetErrorJSONBody(metricErr.Error()))
@@ -59,24 +57,11 @@ func JSONHandler(response http.ResponseWriter, request *http.Request) {
 	}
 }
 
-// createResponse создаём тело для ответа
-func createResponse(body payload.Metrics, responseMessage string) ([]byte, error) {
+// createEmptyResponse создаём тело для ответа
+func createEmptyResponse(responseMessage string) ([]byte, error) {
 	rBody := payload.ResponseBody{
 		Status:  payload.ResponseSuccessStatus,
-		ID:      body.ID,
 		Message: responseMessage,
-	}
-	switch body.MType {
-	case metrics.TypeGauge:
-		val, ok := metrics.MeStore.GetGauge(body.ID)
-		if ok {
-			rBody.Value = val.GetRaw()
-		}
-	case metrics.TypeCounter:
-		val, ok := metrics.MeStore.GetCounter(body.ID)
-		if ok {
-			rBody.Delta = val.GetRaw()
-		}
 	}
 
 	jsonResponse, err := json.Marshal(rBody)

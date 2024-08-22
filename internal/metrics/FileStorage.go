@@ -22,7 +22,12 @@ type Writer interface {
 type DurationFileStorage struct {
 	Storage
 	writer   Writer
-	SyncMode bool // Флаг синхронного режима, в нём после записи в хранилище, сразу оно будет записано в файл
+	syncMode bool // Флаг синхронного режима, в нём после записи в хранилище, сразу оно будет записано в файл
+}
+
+// IsSyncMode открыто ли хранилище в синхронном режиме
+func (storage *DurationFileStorage) IsSyncMode() bool {
+	return storage.syncMode
 }
 
 // Flush запись данных в файл
@@ -31,8 +36,8 @@ func (storage *DurationFileStorage) Flush() error {
 }
 
 // Sync синхронизация данных хранилища в файл по таймеру
-func (storage *DurationFileStorage) Sync(ctx context.Context) {
-	interval := ctx.Value(contextkeys.SyncInterval).(time.Duration)
+func (storage *DurationFileStorage) Sync(ctx context.Context) error {
+	interval := time.Duration(ctx.Value(contextkeys.SyncInterval).(int64)) * time.Second
 	logger.Log.Infof("Sync metrics process starts. Period is %d seconds", interval/time.Second)
 	ticker := time.NewTicker(interval)
 	for {
@@ -47,10 +52,12 @@ func (storage *DurationFileStorage) Sync(ctx context.Context) {
 			logger.Log.Debug("Sync metrics before end")
 			ticker.Stop()
 			if err := storage.Flush(); err != nil {
-				logger.Log.Error(err)
+				logger.Log.Warn("Error while syncing metrics")
+				return err
+				//logger.Log.Error(err)
 			}
 			logger.Log.Debug("Synced")
-			return
+			return nil
 		}
 	}
 }
@@ -69,24 +76,59 @@ func (storage *DurationFileStorage) FlushAndClose() error {
 }
 
 // SetGauge переопределённый метод с записью в файл в случае синхронного режима
-func (storage *DurationFileStorage) SetGauge(name string, value Gauge) {
-	storage.Storage.SetGauge(name, value)
-	if storage.SyncMode {
-		if err := storage.Flush(); err != nil {
-			logger.Log.Error(err)
+func (storage *DurationFileStorage) SetGauge(name string, value Gauge) error {
+	err := storage.Storage.SetGauge(name, value)
+	if err != nil {
+		return err
+	}
+	if storage.syncMode {
+		if err = storage.Flush(); err != nil {
+			return err
 		}
 	}
-
+	return nil
 }
 
 // AddCounter переопределённый метод с записью в файл в случае синхронного режима
-func (storage *DurationFileStorage) AddCounter(name string, value Counter) {
-	storage.Storage.AddCounter(name, value)
-	if storage.SyncMode {
-		if err := storage.Flush(); err != nil {
-			logger.Log.Error(err)
+func (storage *DurationFileStorage) AddCounter(name string, value Counter) error {
+	err := storage.Storage.AddCounter(name, value)
+	if err != nil {
+		return err
+	}
+	if storage.syncMode {
+		if err = storage.Flush(); err != nil {
+			return err
 		}
 	}
+	return nil
+}
+
+// SetGauges массовое обновление гауге
+func (storage *DurationFileStorage) SetGauges(gauges map[string]Gauge) error {
+	err := storage.Storage.SetGauges(gauges)
+	if err != nil {
+		return err
+	}
+	if storage.syncMode {
+		if err = storage.Flush(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// AddCounters массовое обновление каунтер
+func (storage *DurationFileStorage) AddCounters(counters map[string]Counter) error {
+	err := storage.Storage.AddCounters(counters)
+	if err != nil {
+		return err
+	}
+	if storage.syncMode {
+		if err = storage.Flush(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // NewFileStorage создание нового хранилища
@@ -110,7 +152,7 @@ func NewFileStorage(filename string, restore bool, syncMode bool) (*DurationFile
 	return &DurationFileStorage{
 		Storage:  storage,
 		writer:   writer,
-		SyncMode: syncMode,
+		syncMode: syncMode,
 	}, nil
 }
 
@@ -120,7 +162,11 @@ func restoreFromFile(filename string, storage Storage) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if fErr := file.Close(); fErr != nil {
+			logger.Log.Error(fErr)
+		}
+	}()
 	decoder := json.NewDecoder(file)
 	return decoder.Decode(storage)
 }

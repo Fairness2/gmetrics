@@ -3,7 +3,7 @@ package collection
 import (
 	"context"
 	"gmetrics/cmd/agent/config"
-	"log"
+	"gmetrics/internal/logger"
 	"runtime"
 	"sync"
 	"time"
@@ -26,8 +26,8 @@ func NewCollection() *Type {
 // collecting the stats using collection.Collection.Collect, and then sleeping
 // for the duration defined by config.PollInterval.
 func CollectProcess(ctx context.Context) {
-	log.Printf("Collect metrics process starts. Period is %d mseconds\n", config.Params.PollInterval)
-	ticker := time.NewTicker(config.Params.PollInterval)
+	logger.Log.Infof("Collect metrics process starts. Period is %d seconds\n", config.Params.PollInterval)
+	ticker := time.NewTicker(time.Duration(config.Params.PollInterval) * time.Second)
 	// Делаем первый сбор метрик сразу же
 	collect()
 	for {
@@ -37,7 +37,7 @@ func CollectProcess(ctx context.Context) {
 			collect()
 		case <-ctx.Done():
 			ticker.Stop()
-			log.Println("Collect metrics process stopped")
+			logger.Log.Info("Collect metrics process stopped")
 			return
 		}
 	}

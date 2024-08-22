@@ -4,9 +4,7 @@ import (
 	"errors"
 	"flag"
 	"github.com/caarlos0/env/v6"
-	"strconv"
 	"strings"
-	"time"
 )
 
 // Parse инициализирует новую консольную конфигурацию, обрабатывает аргументы командной строки
@@ -28,26 +26,25 @@ func Parse() (*CliConfig, error) {
 
 // parseFromEnv заполняем конфигурацию переменных из окружения
 func parseFromEnv(params *CliConfig) error {
-	cnf := struct {
-		PollInterval   int    `env:"POLL_INTERVAL"`
-		ReportInterval int    `env:"REPORT_INTERVAL"`
-		ServerURL      string `env:"ADDRESS"`
-	}{}
+	cnf := CliConfig{}
 	err := env.Parse(&cnf)
 	// Если ошибка, то считаем, что вывести конфигурацию из окружения не удалось
 	if err != nil {
 		return err
 	}
 	if cnf.PollInterval > 0 {
-		params.PollInterval = time.Duration(cnf.PollInterval) * time.Second
+		params.PollInterval = cnf.PollInterval
 	}
 	if cnf.ReportInterval > 0 {
-		params.ReportInterval = time.Duration(cnf.ReportInterval) * time.Second
+		params.ReportInterval = cnf.ReportInterval
 	}
 	if cnf.ServerURL != "" {
 		if err = setServerURL(cnf.ServerURL, params); err != nil {
 			return err
 		}
+	}
+	if cnf.LogLevel != "" {
+		params.LogLevel = cnf.LogLevel
 	}
 
 	return nil
@@ -61,24 +58,9 @@ func parseFromCli(cnf *CliConfig) error {
 		parseError = setServerURL(s, cnf)
 		return parseError
 	})
-	flag.Func("p", "frequency of metrics collection", func(s string) error {
-		val, err := strconv.Atoi(s)
-		if err != nil {
-			parseError = errors.New("invalid frequency of metrics collection: " + err.Error())
-			return parseError
-		}
-		cnf.PollInterval = time.Duration(val) * time.Second
-		return nil
-	})
-	flag.Func("r", "frequency of sending metrics", func(s string) error {
-		val, err := strconv.Atoi(s)
-		if err != nil {
-			parseError = errors.New("invalid frequency of sending metrics: " + err.Error())
-			return parseError
-		}
-		cnf.ReportInterval = time.Duration(val) * time.Second
-		return nil
-	})
+	flag.Int64Var(&cnf.PollInterval, "p", DefaultPollInterval, "frequency of metrics collection")
+	flag.Int64Var(&cnf.ReportInterval, "r", DefaultReportInterval, "frequency of sending metrics")
+	flag.StringVar(&cnf.LogLevel, "ll", DefaultLogLevel, "level of logging")
 
 	// Парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse() // Сейчас будет выход из приложения, поэтому код ниже не будет исполнен, но может пригодиться в будущем, если поменять флаг выхода или будет несколько сетов

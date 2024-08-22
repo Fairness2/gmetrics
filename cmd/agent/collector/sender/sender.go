@@ -11,9 +11,9 @@ import (
 	"gmetrics/cmd/agent/collector/collection"
 	"gmetrics/cmd/agent/config"
 	"gmetrics/internal/logger"
+	"gmetrics/internal/metricerrors"
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/payload"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -44,90 +44,89 @@ func New(mCollection *collection.Type) *Client {
 
 // PeriodicSender Циклическая отправка данных
 func (c *Client) PeriodicSender(ctx context.Context) {
-	log.Println("Starting periodic sender")
-	ticker := time.NewTicker(config.Params.ReportInterval)
-	c.sendMetrics()
+	logger.Log.Info("Starting periodic sender")
+	ticker := time.NewTicker(time.Duration(config.Params.ReportInterval) * time.Second)
+	c.retrySend()
 	for {
 		// Ловим закрытие контекста, чтобы завершить обработку
 		select {
 		case <-ticker.C:
-			c.sendMetrics()
+			c.retrySend()
 		case <-ctx.Done():
-			log.Println("Periodic sender stopped")
+			logger.Log.Info("Periodic sender stopped")
 			ticker.Stop()
 			return
 		}
 	}
 }
 
+// retrySend отправка метрик с повторами
+func (c *Client) retrySend() {
+	pause := time.Second
+	var rErr *metricerrors.Retriable
+	for i := 0; i < 3; i++ {
+		err := c.sendMetrics()
+		if err == nil {
+			break
+		}
+		logger.Log.Error(err)
+		if !errors.As(err, &rErr) {
+			break
+		}
+
+		<-time.After(pause)
+		pause += 2 * time.Second
+	}
+}
+
 // sendMetrics Функция прохода по метрикам и запуск их отправки
-func (c *Client) sendMetrics() {
-	log.Println("Sending metrics")
+func (c *Client) sendMetrics() error {
+	logger.Log.Info("Sending metrics")
 	// Блокируем коллекцию на изменения
 	c.metricsCollection.Lock()
 	defer c.metricsCollection.Unlock()
-	wg := sync.WaitGroup{}
+	body := make([]payload.Metrics, 0, len(c.metricsCollection.Values))
 
 	// Отправляем все собранные метрики
 	for name, value := range c.metricsCollection.Values {
 		switch value := value.(type) {
 		case metrics.Gauge:
 			metricValue := value.GetRaw()
-			body := payload.Metrics{
+			body = append(body, payload.Metrics{
 				ID:    name,
 				MType: metrics.TypeGauge,
 				Value: &metricValue,
-			}
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				err := c.sendMetric(body)
-				if err != nil {
-					log.Println(err)
-				}
-			}()
+			})
 		case metrics.Counter:
 			metricValue := value.GetRaw()
-			body := payload.Metrics{
+			body = append(body, payload.Metrics{
 				ID:    name,
 				MType: metrics.TypeCounter,
 				Delta: &metricValue,
-			}
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				err := c.sendMetric(body)
-				if err != nil {
-					log.Println(err)
-				}
-			}()
+			})
 		}
 	}
 	// Отдельно отправляем каунт сбора метрик
 	pCnt := c.metricsCollection.PollCount.GetRaw()
-	body := payload.Metrics{
+	body = append(body, payload.Metrics{
 		ID:    "PollCount",
 		MType: metrics.TypeCounter,
 		Delta: &pCnt,
+	})
+	// Отправляем метрики, но сбрасываем каунтер только при успешной отправке
+	if err := c.sendToServer(body); err != nil {
+		return err
 	}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := c.sendMetric(body)
-		if err != nil {
-			log.Println(err)
-		}
-	}()
-	// Ждём завершения отправки всех метрик, чтобы сбросить каунтер
-	wg.Wait()
 	c.metricsCollection.ResetCounter()
+
+	return nil
 }
 
-// sendMetric Отправка метрики
-func (c *Client) sendMetric(body payload.Metrics) error {
-	log.Printf("Sending metric %s with value %d, delta %d type %s\n", body.ID, body.Value, body.Delta, body.MType)
+// sendToServer Отправка метрики
+func (c *Client) sendToServer(body []payload.Metrics) error {
+	logger.Log.Info("Sending metrics")
 	// urlTemplate Шаблон урл: http://<АДРЕС_СЕРВЕРА>/update
-	var urlUpdateTemplate = "%s/update"
+	var urlUpdateTemplate = "%s/updates"
 	sURL := fmt.Sprintf(urlUpdateTemplate, config.Params.ServerURL)
 
 	client := c.client.R().SetHeader("Content-Type", "application/json")
@@ -136,7 +135,7 @@ func (c *Client) sendMetric(body payload.Metrics) error {
 	compressedBody, err := c.compressBody(body)
 	if err != nil {
 		// Если не получилось, то ставим обычное боди
-		log.Println("Cant compress body", err)
+		logger.Log.Error("Cant compress body", err)
 		client.SetBody(body)
 	} else {
 		// Если получилось, то ставим заголовок о методе кодировки и ставим закодированное тело
@@ -146,19 +145,19 @@ func (c *Client) sendMetric(body payload.Metrics) error {
 
 	// Отправляем запрос
 	res, err := client.Post(sURL)
-	log.Printf("Finish sending metric %s with value %d delta %d type %s\n", body.ID, body.Value, body.Delta, body.MType)
+	logger.Log.Info("Finish sending metrics")
 	if err != nil {
-		return err
+		return metricerrors.NewRetriable(err)
 	}
 	if statusCode := res.StatusCode(); statusCode != http.StatusOK {
-		return fmt.Errorf("http status code %d", statusCode)
+		return metricerrors.NewRetriable(fmt.Errorf("http status code %d", statusCode))
 	}
 
 	return nil
 }
 
 // compressBody сжимаем данные в формат gzip
-func (c *Client) compressBody(body payload.Metrics) ([]byte, error) {
+func (c *Client) compressBody(body []payload.Metrics) ([]byte, error) {
 	// Преобразовываем тело в строку джейсон
 	encodedBody, err := json.Marshal(body)
 	if err != nil {

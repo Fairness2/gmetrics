@@ -1,9 +1,11 @@
 package handlemetric
 
 import (
+	"errors"
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"gmetrics/internal/helpers"
+	"gmetrics/internal/logger"
 	"net/http"
 )
 
@@ -20,12 +22,19 @@ func URLHandler(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	ok, updatedErr := updateMetricByStringValue(metricType, metricName, metricValue)
+	updatedErr := updateMetricByStringValue(metricType, metricName, metricValue)
 	if updatedErr != nil {
-		helpers.SetHTTPError(response, updatedErr.HTTPStatus, []byte(updatedErr.Error()))
+		var metricErr *UpdateMetricError
+		if errors.As(updatedErr, &metricErr) {
+			helpers.SetHTTPResponse(response, metricErr.HTTPStatus, helpers.GetErrorJSONBody(metricErr.Error()))
+		} else {
+			helpers.SetHTTPResponse(response, http.StatusInternalServerError, helpers.GetErrorJSONBody(updatedErr.Error()))
+		}
 		return
 	}
-	fmt.Fprint(response, ok)
+	if _, err = fmt.Fprintf(response, "metric %s successfully set", metricName); err != nil {
+		logger.Log.Warn(err)
+	}
 }
 
 // parseURL Разбор URL на тип метрики, имя метрики и значение метрики

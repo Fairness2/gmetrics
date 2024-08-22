@@ -7,25 +7,18 @@ type MemStorage struct {
 	Gauge   map[string]Gauge   `json:"gauge"`
 	Counter map[string]Counter `json:"counter"`
 	mutex   *sync.RWMutex
-	//metrics map[string]any
 }
 
-// Set Установка значения метрики в хранилище
-// Parameters:
-//
-//	name: the name of the metric
-//	value: the value to be stored for the metric
-/*func (storage *MemStorage) Set(name string, value any) {
-	storage.metrics[name] = value
-}*/
-
-func (storage *MemStorage) SetGauge(name string, value Gauge) {
+// SetGauge устанавливаем gauge
+func (storage *MemStorage) SetGauge(name string, value Gauge) error {
 	storage.mutex.Lock()
 	defer storage.mutex.Unlock()
 	storage.Gauge[name] = value
+	return nil
 }
 
-func (storage *MemStorage) AddCounter(name string, value Counter) {
+// AddCounter добавляем каунтер
+func (storage *MemStorage) AddCounter(name string, value Counter) error {
 	storage.mutex.Lock()
 	defer storage.mutex.Unlock()
 	oldValue, ok := storage.Counter[name]
@@ -33,17 +26,10 @@ func (storage *MemStorage) AddCounter(name string, value Counter) {
 		value = oldValue.Add(value)
 	}
 	storage.Counter[name] = value
+	return nil
 }
 
-// Get Получение значения метрики из хранилища
-// Parameters:
-//
-//	name: имя метрики
-//
-// Returns:
-//
-//	value: значение метрики
-//	ok: флаг, указывающий на наличие метрики в хранилище
+// GetGauge получение отдельного gauge
 func (storage *MemStorage) GetGauge(name string) (Gauge, bool) {
 	storage.mutex.RLock()
 	defer storage.mutex.RUnlock()
@@ -51,6 +37,7 @@ func (storage *MemStorage) GetGauge(name string) (Gauge, bool) {
 	return value, ok
 }
 
+// GetCounter получение отдельного counter
 func (storage *MemStorage) GetCounter(name string) (Counter, bool) {
 	storage.mutex.RLock()
 	defer storage.mutex.RUnlock()
@@ -58,6 +45,7 @@ func (storage *MemStorage) GetCounter(name string) (Counter, bool) {
 	return cValue, ok
 }
 
+// NewMemStorage создание нового хранилища в памяти
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
 		//metrics: make(map[string]any),
@@ -67,14 +55,36 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
-func (storage *MemStorage) GetGauges() map[string]Gauge {
+// GetGauges получение всех gauge
+func (storage *MemStorage) GetGauges() (map[string]Gauge, error) {
 	storage.mutex.RLock()
 	defer storage.mutex.RUnlock()
-	return storage.Gauge
+	return storage.Gauge, nil
 }
 
-func (storage *MemStorage) GetCounters() map[string]Counter {
+// GetCounters получение всех counter
+func (storage *MemStorage) GetCounters() (map[string]Counter, error) {
 	storage.mutex.RLock()
 	defer storage.mutex.RUnlock()
-	return storage.Counter
+	return storage.Counter, nil
+}
+
+// SetGauges массовое обновление гауге в памяти
+func (storage *MemStorage) SetGauges(gauges map[string]Gauge) error {
+	for name, gauge := range gauges {
+		if err := storage.SetGauge(name, gauge); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// AddCounters массовое обновление каунтер  в памяти
+func (storage *MemStorage) AddCounters(counters map[string]Counter) error {
+	for name, counter := range counters {
+		if err := storage.AddCounter(name, counter); err != nil {
+			return err
+		}
+	}
+	return nil
 }
