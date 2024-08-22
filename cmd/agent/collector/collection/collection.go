@@ -55,6 +55,8 @@ func (c *Type) Collect(stats runtime.MemStats) {
 	c.Values["StackSys"] = metrics.Gauge(stats.StackSys)
 	c.Values["Sys"] = metrics.Gauge(stats.Sys)
 
+	c.Values["Sys"] = metrics.Gauge(stats.Sys)
+
 	c.PollCount = c.PollCount.Add(1)
 	c.Values["RandomValue"] = metrics.Gauge(rand.Float64())
 
