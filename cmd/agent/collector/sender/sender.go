@@ -7,7 +7,6 @@ import (
 	"github.com/go-resty/resty/v2"
 	"gmetrics/cmd/agent/collector/collection"
 	"gmetrics/cmd/agent/config"
-	"gmetrics/cmd/agent/sendpool"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metricerrors"
 	"gmetrics/internal/metrics"
@@ -19,10 +18,15 @@ import (
 type Client struct {
 	client            *resty.Client // Клиент для подключения к серверам
 	metricsCollection *collection.Type
-	sendPool          *sendpool.Pool
+	sendPool          Pusher
 }
 
-func New(mCollection *collection.Type, sendPool *sendpool.Pool) *Client {
+// Pusher интерфейс для пула конектов к серверу
+type Pusher interface {
+	Send(body []payload.Metrics) (*resty.Response, error)
+}
+
+func New(mCollection *collection.Type, sendPool Pusher) *Client {
 	c := &Client{
 		metricsCollection: mCollection,
 		client:            resty.New(),
