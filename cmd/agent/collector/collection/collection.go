@@ -55,6 +55,8 @@ func (c *Type) Collect(stats runtime.MemStats) {
 	c.Values["StackSys"] = metrics.Gauge(stats.StackSys)
 	c.Values["Sys"] = metrics.Gauge(stats.Sys)
 
+	c.Values["Sys"] = metrics.Gauge(stats.Sys)
+
 	c.PollCount = c.PollCount.Add(1)
 	c.Values["RandomValue"] = metrics.Gauge(rand.Float64())
 
@@ -74,4 +76,18 @@ func (c *Type) Unlock() {
 // ResetCounter Обнуление значения счетчика PollCount
 func (c *Type) ResetCounter() {
 	c.PollCount = c.PollCount.Clear()
+}
+
+// CollectFromMap Сохраняем в коллекцию несколько новых значений
+func (c *Type) CollectFromMap(stats map[string]metrics.Gauge) {
+	logger.Log.Info("Collecting util metrics...")
+	// Использование мьютекса предотвращает попытки одновременной записи в коллекцию
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	for name, gauge := range stats {
+		c.Values[name] = gauge
+	}
+
+	logger.Log.Info("End collecting metrics")
 }

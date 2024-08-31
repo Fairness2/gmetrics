@@ -46,6 +46,12 @@ func parseFromEnv(params *CliConfig) error {
 	if cnf.LogLevel != "" {
 		params.LogLevel = cnf.LogLevel
 	}
+	if cnf.HashKey != "" {
+		params.HashKey = cnf.HashKey
+	}
+	if cnf.RateLimit > 0 {
+		params.RateLimit = cnf.RateLimit
+	}
 
 	return nil
 }
@@ -61,6 +67,8 @@ func parseFromCli(cnf *CliConfig) error {
 	flag.Int64Var(&cnf.PollInterval, "p", DefaultPollInterval, "frequency of metrics collection")
 	flag.Int64Var(&cnf.ReportInterval, "r", DefaultReportInterval, "frequency of sending metrics")
 	flag.StringVar(&cnf.LogLevel, "ll", DefaultLogLevel, "level of logging")
+	flag.StringVar(&cnf.HashKey, "k", DefaultHashKey, "encrypted key")
+	flag.IntVar(&cnf.RateLimit, "l", DefaultRateLimit, "number of simultaneously outgoing requests to the server")
 
 	// Парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse() // Сейчас будет выход из приложения, поэтому код ниже не будет исполнен, но может пригодиться в будущем, если поменять флаг выхода или будет несколько сетов

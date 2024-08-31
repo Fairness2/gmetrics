@@ -1,10 +1,7 @@
 package sender
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/go-resty/resty/v2"
@@ -15,30 +12,26 @@ import (
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/payload"
 	"net/http"
-	"sync"
 	"time"
 )
 
 type Client struct {
 	client            *resty.Client // Клиент для подключения к серверам
 	metricsCollection *collection.Type
-	encodeWriterPool  sync.Pool
+	sendPool          Sender
 }
 
-func New(mCollection *collection.Type) *Client {
+// Sender интерфейс для пула конектов к серверу
+type Sender interface {
+	Send(body []payload.Metrics) (*resty.Response, error)
+}
+
+func New(mCollection *collection.Type, sendPool Sender) *Client {
 	c := &Client{
 		metricsCollection: mCollection,
 		client:            resty.New(),
-		encodeWriterPool: sync.Pool{
-			New: func() interface{} {
-				writer, err := gzip.NewWriterLevel(nil, gzip.BestSpeed)
-				if err != nil {
-					logger.Log.Error(err)
-					return nil
-				}
-				return writer
-			},
-		}}
+		sendPool:          sendPool,
+	}
 	return c
 }
 
@@ -124,27 +117,8 @@ func (c *Client) sendMetrics() error {
 
 // sendToServer Отправка метрики
 func (c *Client) sendToServer(body []payload.Metrics) error {
-	logger.Log.Info("Sending metrics")
-	// urlTemplate Шаблон урл: http://<АДРЕС_СЕРВЕРА>/update
-	var urlUpdateTemplate = "%s/updates"
-	sURL := fmt.Sprintf(urlUpdateTemplate, config.Params.ServerURL)
-
-	client := c.client.R().SetHeader("Content-Type", "application/json")
-
-	// Пробуем сжать тело
-	compressedBody, err := c.compressBody(body)
-	if err != nil {
-		// Если не получилось, то ставим обычное боди
-		logger.Log.Error("Cant compress body", err)
-		client.SetBody(body)
-	} else {
-		// Если получилось, то ставим заголовок о методе кодировки и ставим закодированное тело
-		client.SetHeader("Content-Encoding", "gzip").
-			SetBody(compressedBody)
-	}
-
 	// Отправляем запрос
-	res, err := client.Post(sURL)
+	res, err := c.sendPool.Send(body)
 	logger.Log.Info("Finish sending metrics")
 	if err != nil {
 		return metricerrors.NewRetriable(err)
@@ -154,36 +128,4 @@ func (c *Client) sendToServer(body []payload.Metrics) error {
 	}
 
 	return nil
-}
-
-// compressBody сжимаем данные в формат gzip
-func (c *Client) compressBody(body []payload.Metrics) ([]byte, error) {
-	// Преобразовываем тело в строку джейсон
-	encodedBody, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-
-	// Создаём буфер, в который запишем сжатое тело
-	var buf bytes.Buffer
-	// Берём свободный врайтер для записи
-	writer := c.encodeWriterPool.Get().(*gzip.Writer)
-	// Если у нас он nil, то была ошибка
-	if writer == nil {
-		return nil, errors.New("writer is nil")
-	}
-	// Устанавливаем новый буфер во врайтер
-	writer.Reset(&buf)
-	// Кодируем данные
-	_, err = writer.Write(encodedBody)
-	if err != nil {
-		return nil, err
-	}
-	// Делаем закрытие врайтера, чтобы он прописал все нужные байты в конце. После Reset он откроется снова (Проверял,ставил последовательно закрытие, ресет с новым буфером и снова запись)
-	err = writer.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }

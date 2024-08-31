@@ -5,6 +5,7 @@ import (
 	"gmetrics/cmd/agent/collector/collection"
 	"gmetrics/cmd/agent/collector/sender"
 	"gmetrics/cmd/agent/config"
+	"gmetrics/cmd/agent/sendpool"
 	"gmetrics/internal/logger"
 	"go.uber.org/zap"
 	"log"
@@ -41,19 +42,27 @@ func main() {
 	defer cancel()
 	// Создаём группу ожидания на 2 потока: сборки данных и отправки
 	wg := sync.WaitGroup{}
-	wg.Add(2)
+	wg.Add(3)
 	go func() {
-		collection.CollectProcess(ctx)
 		defer wg.Done()
+		collection.CollectProcess(ctx)
 	}() // Запускаем сборку данных
+	go func() {
+		defer wg.Done()
+		collection.CollectUtilProcess(ctx)
+	}() // Запускаем сборку данных использования системы
+
+	// Создаём пул отправок на сервер
+	sendPool := sendpool.New(ctx, config.Params.RateLimit)
 
 	// Запускаем отправку данных
-	client := sender.New(collection.Collection)
+	client := sender.New(collection.Collection, sendPool)
 	logger.Log.Info("New sender client created")
 	go func() {
-		client.PeriodicSender(ctx)
 		defer wg.Done()
+		client.PeriodicSender(ctx)
 	}()
+
 	// Ожидаем сигнала завершения Ctrl+C, чтобы корректно завершить работу
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)

@@ -20,11 +20,21 @@ var ErrorStopWithOptions = errors.New("stop with options")
 // app инкапсулирует в себя все зависимости и логику приложения
 type app struct {
 	store store.Store
+	// канал для отложенной отправки новых сообщений
+	msgChan chan store.Message
 }
 
 // newApp принимает на вход внешние зависимости приложения и возвращает новый объект app
 func newApp(s store.Store) *app {
-	return &app{store: s}
+	instance := &app{
+		store:   s,
+		msgChan: make(chan store.Message, 1024), // установим каналу буфер в 1024 сообщения
+	}
+
+	// запустим горутину с фоновым сохранением новых сообщений
+	go instance.flushMessages()
+
+	return instance
 }
 
 func validateRequest(response http.ResponseWriter, request *http.Request) error {
@@ -137,18 +147,13 @@ func (a *app) send(ctx context.Context, req *models.Request, response http.Respo
 		return "", fmt.Errorf("cannot find recipient by username %w", err)
 	}
 
-	// сохраняем новое сообщение в СУБД, после успешного сохранения оно станет доступно для прослушивания получателем
-	err = a.store.SaveMessage(ctx, recipientID, store.Message{
-		Sender:  req.Session.User.UserID,
-		Time:    time.Now(),
-		Payload: message,
-	})
-	if err != nil {
-		logger.Log.Debug("cannot save message", zap.String("recipient", recipientID), zap.Error(err))
-		response.WriteHeader(http.StatusInternalServerError)
-		return "", fmt.Errorf("cannot save message %w", err)
+	// отправим сообщение в очередь на сохранение
+	a.msgChan <- store.Message{
+		Sender:    req.Session.User.UserID,
+		Recipient: recipientID,
+		Time:      time.Now(),
+		Payload:   message,
 	}
-
 	// Оповестим отправителя об успешности операции
 	return "Сообщение успешно отправлено", nil
 }
@@ -259,4 +264,34 @@ func (a *app) defaultHandle(ctx context.Context, req *models.Request, response h
 		text = fmt.Sprintf("Точное время %d часов, %d минут. %s", hour, minute, text)
 	}
 	return text, nil
+}
+
+// flushMessages постоянно сохраняет несколько сообщений в хранилище с определённым интервалом
+func (a *app) flushMessages() {
+	// будем сохранять сообщения, накопленные за последние 10 секунд
+	ticker := time.NewTicker(10 * time.Second)
+
+	var messages []store.Message
+
+	for {
+		select {
+		case msg := <-a.msgChan:
+			// добавим сообщение в слайс для последующего сохранения
+			messages = append(messages, msg)
+		case <-ticker.C:
+			// подождём, пока придёт хотя бы одно сообщение
+			if len(messages) == 0 {
+				continue
+			}
+			// сохраним все пришедшие сообщения одновременно
+			err := a.store.SaveMessages(context.TODO(), messages...)
+			if err != nil {
+				logger.Log.Debug("cannot save messages", zap.Error(err))
+				// не будем стирать сообщения, попробуем отправить их чуть позже
+				continue
+			}
+			// сотрём успешно отосланные сообщения
+			messages = nil
+		}
+	}
 }

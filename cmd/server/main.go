@@ -161,12 +161,17 @@ func getRouter() chi.Router {
 	router.Get("/ping", ping.Handler)
 
 	router.Group(func(r chi.Router) {
-		// Устанавилваем мидлваре с логированием запросов
+		// Устанавилваем мидлваре
 		r.Use(middlewares.JSONHeaders)
-		// Сохранение метрики с помощью JSON тела
-		r.Post("/update", handlemetric.JSONHandler)
-		// Сохранение метрик с помощью JSON тела
-		r.Post("/updates", handlemetric.JSONManyHandler)
+
+		router.Group(func(r chi.Router) {
+			// Устанавилваем мидлваре
+			r.Use(middlewares.CheckSign) // Проверка подписи тела
+			// Сохранение метрики с помощью JSON тела
+			r.Post("/update", handlemetric.JSONHandler)
+			// Сохранение метрик с помощью JSON тела
+			r.Post("/updates", handlemetric.JSONManyHandler)
+		})
 		// Получение отдельной метрики
 		r.Post("/value", getmetric.JSONHandler)
 	})

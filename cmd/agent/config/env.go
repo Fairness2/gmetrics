@@ -12,6 +12,12 @@ const (
 
 	// DefaultLogLevel Уровень логирования по умолчанию
 	DefaultLogLevel = "info"
+
+	// DefaultHashKey ключ шифрования по умолчанию
+	DefaultHashKey = ""
+
+	// DefaultRateLimit количество одновременно исходящих запросов на сервер
+	DefaultRateLimit = 1
 )
 
 // CliConfig конфигурация клиента из командной строки
@@ -24,6 +30,10 @@ type CliConfig struct {
 	ServerURL string `env:"ADDRESS"`
 	// Уровень логирования
 	LogLevel string `env:"LOG_LEVEL"`
+	// HashKey Ключ для шифрования
+	HashKey string `env:"KEY"`
+	// RateLimit количество одновременно исходящих запросов на сервер
+	RateLimit int `env:"RATE_LIMIT"`
 }
 
 // Params конфигурация приложения
@@ -36,5 +46,7 @@ func InitializeDefaultConfig() *CliConfig {
 		ReportInterval: DefaultReportInterval,
 		ServerURL:      DefaultServerURL,
 		LogLevel:       DefaultLogLevel,
+		HashKey:        DefaultHashKey,
+		RateLimit:      DefaultRateLimit,
 	}
 }
