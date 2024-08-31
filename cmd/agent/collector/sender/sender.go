@@ -18,15 +18,15 @@ import (
 type Client struct {
 	client            *resty.Client // Клиент для подключения к серверам
 	metricsCollection *collection.Type
-	sendPool          Pusher
+	sendPool          Sender
 }
 
-// Pusher интерфейс для пула конектов к серверу
-type Pusher interface {
+// Sender интерфейс для пула конектов к серверу
+type Sender interface {
 	Send(body []payload.Metrics) (*resty.Response, error)
 }
 
-func New(mCollection *collection.Type, sendPool Pusher) *Client {
+func New(mCollection *collection.Type, sendPool Sender) *Client {
 	c := &Client{
 		metricsCollection: mCollection,
 		client:            resty.New(),

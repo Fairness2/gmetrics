@@ -52,7 +52,7 @@ func getMockCollection() *collection.Type {
 }
 
 func TestNew(t *testing.T) {
-	c := New(getMockCollection(), createMockPusher(t))
+	c := New(getMockCollection(), createMockSender(t))
 	assert.NotNil(t, c)
 }
 
@@ -145,9 +145,9 @@ func TestSendMetric(t *testing.T) {
 	}
 }
 
-func createMockPusher(t *testing.T) *mock.MockPusher {
+func createMockSender(t *testing.T) *mock.MockSender {
 	ctrl := gomock.NewController(t)
-	s := mock.NewMockPusher(ctrl)
+	s := mock.NewMockSender(ctrl)
 
 	return s
 }
