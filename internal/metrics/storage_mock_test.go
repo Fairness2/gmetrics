@@ -2,10 +2,9 @@
 // Source: internal/metrics/storage.go
 
 // Package mock is a generated GoMock package.
-package mock
+package metrics
 
 import (
-	metrics "gmetrics/internal/metrics"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -35,7 +34,7 @@ func (m *MockStorage) EXPECT() *MockStorageMockRecorder {
 }
 
 // AddCounter mocks base method.
-func (m *MockStorage) AddCounter(name string, value metrics.Counter) {
+func (m *MockStorage) AddCounter(name string, value Counter) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "AddCounter", name, value)
 }
@@ -47,10 +46,10 @@ func (mr *MockStorageMockRecorder) AddCounter(name, value interface{}) *gomock.C
 }
 
 // GetCounter mocks base method.
-func (m *MockStorage) GetCounter(name string) (metrics.Counter, bool) {
+func (m *MockStorage) GetCounter(name string) (Counter, bool) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCounter", name)
-	ret0, _ := ret[0].(metrics.Counter)
+	ret0, _ := ret[0].(Counter)
 	ret1, _ := ret[1].(bool)
 	return ret0, ret1
 }
@@ -62,10 +61,10 @@ func (mr *MockStorageMockRecorder) GetCounter(name interface{}) *gomock.Call {
 }
 
 // GetCounters mocks base method.
-func (m *MockStorage) GetCounters() map[string]metrics.Counter {
+func (m *MockStorage) GetCounters() map[string]Counter {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCounters")
-	ret0, _ := ret[0].(map[string]metrics.Counter)
+	ret0, _ := ret[0].(map[string]Counter)
 	return ret0
 }
 
@@ -76,10 +75,10 @@ func (mr *MockStorageMockRecorder) GetCounters() *gomock.Call {
 }
 
 // GetGauge mocks base method.
-func (m *MockStorage) GetGauge(name string) (metrics.Gauge, bool) {
+func (m *MockStorage) GetGauge(name string) (Gauge, bool) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetGauge", name)
-	ret0, _ := ret[0].(metrics.Gauge)
+	ret0, _ := ret[0].(Gauge)
 	ret1, _ := ret[1].(bool)
 	return ret0, ret1
 }
@@ -91,10 +90,10 @@ func (mr *MockStorageMockRecorder) GetGauge(name interface{}) *gomock.Call {
 }
 
 // GetGauges mocks base method.
-func (m *MockStorage) GetGauges() map[string]metrics.Gauge {
+func (m *MockStorage) GetGauges() map[string]Gauge {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetGauges")
-	ret0, _ := ret[0].(map[string]metrics.Gauge)
+	ret0, _ := ret[0].(map[string]Gauge)
 	return ret0
 }
 
@@ -105,7 +104,7 @@ func (mr *MockStorageMockRecorder) GetGauges() *gomock.Call {
 }
 
 // SetGauge mocks base method.
-func (m *MockStorage) SetGauge(name string, value metrics.Gauge) {
+func (m *MockStorage) SetGauge(name string, value Gauge) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetGauge", name, value)
 }

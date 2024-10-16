@@ -5,7 +5,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"gmetrics/cmd/agent/collector/collection"
-	"gmetrics/cmd/agent/collector/sender/mock"
 	"gmetrics/cmd/agent/config"
 	"gmetrics/cmd/agent/sendpool"
 	"gmetrics/internal/metrics"
@@ -126,14 +125,13 @@ func TestSendMetric(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			mockServer := tc.setupMock()
-			config.Params.ServerURL = mockServer.URL
 
 			defer mockServer.Close()
 			ctx, cancelFunc := context.WithCancel(context.TODO())
 			defer cancelFunc()
 
 			// Создаём пул отправок на сервер
-			sendPool := sendpool.New(ctx, 1)
+			sendPool := sendpool.New(ctx, 1, "", mockServer.URL)
 			c := New(getMockCollection(), sendPool)
 			err := c.sendToServer(tc.body())
 			if tc.expectedError {
@@ -145,9 +143,9 @@ func TestSendMetric(t *testing.T) {
 	}
 }
 
-func createMockSender(t *testing.T) *mock.MockSender {
+func createMockSender(t *testing.T) *MockSender {
 	ctrl := gomock.NewController(t)
-	s := mock.NewMockSender(ctrl)
+	s := NewMockSender(ctrl)
 
 	return s
 }

@@ -54,7 +54,7 @@ func GZIPCompressResponse(next http.Handler) http.Handler {
 		// Если доступно сжатие, то заменяем писателя на сжимающего и проставляем заголовок, что тело сжато
 		if header := r.Header.Get("Accept-Encoding"); strings.Contains(header, "gzip") {
 			logger.Log.Debugw("Allowed content encoding", "type", "gzip")
-			writer, err := compress.NewGZIPHTTPWriter(w)
+			writer, err := compress.GetGZIPHTTPWriter(w)
 			if err != nil {
 				logger.Log.Error(err)
 			} else {

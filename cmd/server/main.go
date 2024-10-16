@@ -19,12 +19,16 @@ import (
 	"golang.org/x/sync/errgroup"
 	"log"
 	"net/http"
+	_ "net/http/pprof" // подключаем пакет pprof
 	"os"
 	"os/signal"
 	"syscall"
 )
 
 func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 	// Устанавливаем настройки
 	cnf, err := config.Parse()
 	if err != nil {

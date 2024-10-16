@@ -9,6 +9,8 @@ import (
 	"gmetrics/internal/logger"
 	"go.uber.org/zap"
 	"log"
+	"net/http"
+	_ "net/http/pprof" // подключаем пакет pprof
 	"os"
 	"os/signal"
 	"sync"
@@ -17,6 +19,9 @@ import (
 
 func main() {
 	log.Println("Agent is starting")
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6061", nil))
+	}()
 	// Устанавливаем настройки
 	cnf, err := config.Parse()
 	if err != nil {
@@ -33,6 +38,7 @@ func main() {
 		"logLevel", config.Params.LogLevel,
 		"server url", config.Params.ServerURL,
 		"report interval", config.Params.ReportInterval,
+		"hash key", config.Params.HashKey,
 	)
 
 	// Создаём новую коллекцию метрик и устанавливаем её глобально
@@ -53,7 +59,7 @@ func main() {
 	}() // Запускаем сборку данных использования системы
 
 	// Создаём пул отправок на сервер
-	sendPool := sendpool.New(ctx, config.Params.RateLimit)
+	sendPool := sendpool.New(ctx, config.Params.RateLimit, config.Params.HashKey, config.Params.ServerURL)
 
 	// Запускаем отправку данных
 	client := sender.New(collection.Collection, sendPool)

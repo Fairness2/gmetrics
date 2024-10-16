@@ -9,9 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/go-resty/resty/v2"
-	"gmetrics/cmd/agent/config"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/payload"
 	"sync"
@@ -19,6 +17,11 @@ import (
 
 // ErrorPoolIsClosed ошибка, что пул закрыт
 var ErrorPoolIsClosed = errors.New("pool is closed")
+var ErrorEmptyHashKey = errors.New("hash key is empty")
+
+type IClient interface {
+	Post(url string, body []byte, headers ...Header) (*resty.Response, error)
+}
 
 // response структура ответа из горрутины
 type response struct {
@@ -37,28 +40,37 @@ type Pool struct {
 	wg               sync.WaitGroup    // Группа ожидания для корректиного закрытия пула
 	in               chan *poolPayload // Канал для отправки в горрутины
 	isClosed         bool              // Флаг, что пул закрыт
-	client           *resty.Client     // Клиент для подключения к серверам
+	client           IClient           // Клиент для подключения к серверам
 	encodeWriterPool sync.Pool         // Шифровальщики тела
+	HashKey          string
+}
+
+func newEncoder() interface{} {
+	writer, err := gzip.NewWriterLevel(nil, gzip.BestSpeed)
+	if err != nil {
+		logger.Log.Error(err)
+		return nil
+	}
+	return writer
 }
 
 // New Создание нового пула отправщиков.
 // Закрывается по завершению контекста
-func New(ctx context.Context, size int) *Pool {
+func New(ctx context.Context, size int, HashKey, ServerURL string) *Pool {
+	return NewWithClient(ctx, size, HashKey, NewRestClient(ServerURL))
+}
+
+func NewWithClient(ctx context.Context, size int, HashKey string, client IClient) *Pool {
 	in := make(chan *poolPayload, size)
 	pool := &Pool{
 		wg:     sync.WaitGroup{},
 		in:     in,
-		client: resty.New(),
+		client: client,
 		encodeWriterPool: sync.Pool{
-			New: func() interface{} {
-				writer, err := gzip.NewWriterLevel(nil, gzip.BestSpeed)
-				if err != nil {
-					logger.Log.Error(err)
-					return nil
-				}
-				return writer
-			},
-		}}
+			New: newEncoder,
+		},
+		HashKey: HashKey,
+	}
 	for i := 0; i < size; i++ {
 		pool.wg.Add(1)
 		go pool.worker(ctx)
@@ -116,10 +128,11 @@ func (p *Pool) processRequest(body *poolPayload) {
 // sendToServer Отправка метрики
 func (p *Pool) sendToServer(body []payload.Metrics) (*resty.Response, error) {
 	logger.Log.Info("Sending metrics")
-	// urlTemplate Шаблон урл: http://<АДРЕС_СЕРВЕРА>/update
-	var urlUpdateTemplate = "%s/updates"
-	sURL := fmt.Sprintf(urlUpdateTemplate, config.Params.ServerURL)
-	client := p.client.R().SetHeader("Content-Type", "application/json")
+	headers := make([]Header, 0, 3)
+	headers = append(headers, Header{
+		Name:  "Content-Type",
+		Value: "application/json",
+	})
 
 	// Преобразуем тело в джейсон
 	marshaledBody, err := p.marshalBody(body)
@@ -132,9 +145,11 @@ func (p *Pool) sendToServer(body []payload.Metrics) (*resty.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	client.SetBody(compressedBody)
 	if comressed {
-		client.SetHeader("Content-Encoding", "gzip")
+		headers = append(headers, Header{
+			Name:  "Content-Encoding",
+			Value: "gzip",
+		})
 	}
 
 	// Устанавливаем подпись тела
@@ -142,11 +157,14 @@ func (p *Pool) sendToServer(body []payload.Metrics) (*resty.Response, error) {
 	if hashErr != nil {
 		logger.Log.Error("Cant hash body", err)
 	} else {
-		client.SetHeader("HashSHA256", bodyHash)
+		headers = append(headers, Header{
+			Name:  "HashSHA256",
+			Value: bodyHash,
+		})
 	}
 
 	// Отправляем запрос
-	res, err := client.Post(sURL)
+	res, err := p.client.Post("/updates", compressedBody, headers...)
 	logger.Log.Info("Finish sending metrics")
 
 	return res, err
@@ -179,10 +197,10 @@ func (p *Pool) getBody(body []byte) ([]byte, bool, error) {
 
 // hashBody создаём подпись запроса
 func (p *Pool) hashBody(body []byte) (string, error) {
-	if config.Params.HashKey == "" {
-		return "", errors.New("hash key is empty")
+	if p.HashKey == "" {
+		return "", ErrorEmptyHashKey
 	}
-	harsher := hmac.New(sha256.New, []byte(config.Params.HashKey))
+	harsher := hmac.New(sha256.New, []byte(p.HashKey))
 	harsher.Write(body)
 	return hex.EncodeToString(harsher.Sum(nil)), nil
 }

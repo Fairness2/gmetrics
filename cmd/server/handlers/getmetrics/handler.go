@@ -2,6 +2,8 @@ package getmetrics
 
 import (
 	"bytes"
+	"embed"
+	_ "embed"
 	"gmetrics/internal/helpers"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
@@ -11,13 +13,17 @@ import (
 
 var t *template.Template // Массив для хранения шиблонов с их именами
 
+//go:embed templates/*
+var baseTemplate embed.FS
+
+//go:embed templates/metrics.gohtml
+var metricsTemplate string
+
 func init() {
 
 	// Синтаксический разбор шаблона всегда в готовую переменную
 	// Загрузка шаблонов вместе с основным шаблоном
-	t = template.Must(template.New("metrics.gohtml").ParseFiles(
-		"cmd/server/web/templates/base.gohtml",
-		"cmd/server/web/templates/metrics.gohtml"))
+	t = template.Must(template.New("metrics.gohtml").ParseFS(baseTemplate, "templates/base.gohtml", "templates/metrics.gohtml"))
 }
 
 // Handler Возвращает страницу с метриками

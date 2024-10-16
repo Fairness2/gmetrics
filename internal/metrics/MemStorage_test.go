@@ -39,6 +39,34 @@ func TestSetGauge(t *testing.T) {
 	}
 }
 
+func TestUnsafeSetGauge(t *testing.T) {
+	memStore := NewMemStorage()
+	testCases := []struct {
+		name      string
+		mName     string
+		wantValue Gauge
+	}{
+		{
+			name:      "set_new_gauge",
+			mName:     "metricname",
+			wantValue: Gauge(42.5),
+		},
+		{
+			name:      "overwrite_gauge",
+			mName:     "metricname",
+			wantValue: Gauge(43.5),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := memStore.unsafeSetGauge(tc.mName, tc.wantValue)
+			require.NoError(t, err)
+			v, _ := memStore.GetGauge(tc.mName)
+			assert.Equal(t, tc.wantValue, v)
+		})
+	}
+}
+
 func TestAddCounter(t *testing.T) {
 	memStore := NewMemStorage()
 	testCases := []struct {
@@ -63,6 +91,37 @@ func TestAddCounter(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := memStore.AddCounter(tc.mName, tc.addValue)
+			require.NoError(t, err)
+			v, _ := memStore.GetCounter(tc.mName)
+			assert.Equal(t, tc.wantValue, v)
+		})
+	}
+}
+
+func TestUnsafeAddCounter(t *testing.T) {
+	memStore := NewMemStorage()
+	testCases := []struct {
+		name      string
+		mName     string
+		addValue  Counter
+		wantValue Counter
+	}{
+		{
+			name:      "add_new_counter",
+			mName:     "metricname",
+			addValue:  Counter(5),
+			wantValue: Counter(5),
+		},
+		{
+			name:      "increment_counter",
+			mName:     "metricname",
+			addValue:  Counter(5),
+			wantValue: Counter(10),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := memStore.unsafeAddCounter(tc.mName, tc.addValue)
 			require.NoError(t, err)
 			v, _ := memStore.GetCounter(tc.mName)
 			assert.Equal(t, tc.wantValue, v)
@@ -106,7 +165,7 @@ func TestMemStorage_GetGauge(t *testing.T) {
 	}
 }
 
-func TestGet(t *testing.T) {
+func TestGetCounter(t *testing.T) {
 	memStore := NewMemStorage()
 	_ = memStore.AddCounter("hits", 1)
 
