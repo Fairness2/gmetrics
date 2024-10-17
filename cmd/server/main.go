@@ -162,7 +162,7 @@ func getRouter() chi.Router {
 	router.Get("/value/{type}/{name}", getmetric.URLHandler)
 
 	// проверка состояния соединения с базой данных
-	router.Get("/ping", ping.Handler)
+	router.Get("/ping", ping.NewController(database.DB).Handler)
 
 	router.Group(func(r chi.Router) {
 		// Устанавилваем мидлваре

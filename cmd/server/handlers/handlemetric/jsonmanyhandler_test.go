@@ -91,3 +91,33 @@ func TestJSONManyHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateEmptyResponse(t *testing.T) {
+	tests := []struct {
+		name            string
+		responseMessage string
+		wantErr         bool
+	}{
+		{
+			name:            "empty_message",
+			responseMessage: "",
+			wantErr:         false,
+		},
+		{
+			name:            "normal_message",
+			responseMessage: "Test message",
+			wantErr:         false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := createEmptyResponse(test.responseMessage)
+
+			if (err != nil) != test.wantErr {
+				t.Errorf("createEmptyResponse() error = %v, wantErr %v", err, test.wantErr)
+				return
+			}
+		})
+	}
+}
