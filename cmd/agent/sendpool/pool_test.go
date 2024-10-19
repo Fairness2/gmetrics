@@ -22,7 +22,7 @@ func Benchmark(b *testing.B) {
 		AnyTimes()
 	p := NewWithClient(context.TODO(), 2, "aboba", restClient)
 	var intValue int64 = 64
-	var floatValue float64 = 64.64
+	floatValue := 64.64
 	body := []payload.Metrics{
 		{
 			ID:    "PollCount",
@@ -175,7 +175,7 @@ func TestPoolMarshalBody(t *testing.T) {
 			name: "normal_case",
 			body: func() []payload.Metrics {
 				var intValue int64 = 64
-				var floatValue float64 = 64.64
+				floatValue := 64.64
 				return []payload.Metrics{
 					{
 						ID:    "PollCount",
@@ -226,7 +226,7 @@ func TestSendToServer(t *testing.T) {
 			name: "normal_case",
 			body: func() []payload.Metrics {
 				var intValue int64 = 64
-				var floatValue float64 = 64.64
+				floatValue := 64.64
 				return []payload.Metrics{
 					{
 						ID:    "PollCount",

@@ -105,7 +105,7 @@ func TestCreateResponse(t *testing.T) {
 		{
 			name: "gauge_type_with_existing_value",
 			body: func() payload.Metrics {
-				var val float64 = 12.34
+				val := 12.34
 				return payload.Metrics{ID: "someGauge", MType: metrics.TypeGauge, Value: &val}
 			},
 			message:   "gauge updated",

@@ -76,7 +76,7 @@ func TestUpdateMetricByRequestBody(t *testing.T) {
 		{
 			name: "gauge_valid",
 			payload: func() payload.Metrics {
-				var val float64 = 1.23
+				val := 1.23
 				return payload.Metrics{
 					ID:    "Load",
 					MType: metrics.TypeGauge,
@@ -99,7 +99,7 @@ func TestUpdateMetricByRequestBody(t *testing.T) {
 		{
 			name: "empty_id",
 			payload: func() payload.Metrics {
-				var val float64 = 1.23
+				val := 1.23
 				return payload.Metrics{
 					ID:    "",
 					MType: metrics.TypeGauge,
@@ -168,7 +168,7 @@ func TestUpdateMetricsByRequestBody(t *testing.T) {
 		{
 			name: "gauge_valid",
 			payload: func() []payload.Metrics {
-				var val float64 = 1.23
+				val := 1.23
 				return []payload.Metrics{{
 					ID:    "Load",
 					MType: metrics.TypeGauge,
@@ -191,7 +191,7 @@ func TestUpdateMetricsByRequestBody(t *testing.T) {
 		{
 			name: "empty_id",
 			payload: func() []payload.Metrics {
-				var val float64 = 1.23
+				val := 1.23
 				return []payload.Metrics{{
 					ID:    "",
 					MType: metrics.TypeGauge,

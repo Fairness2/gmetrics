@@ -3,7 +3,6 @@ package getmetrics
 import (
 	"bytes"
 	"embed"
-	_ "embed"
 	"gmetrics/internal/helpers"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
