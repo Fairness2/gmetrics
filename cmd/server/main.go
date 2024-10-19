@@ -74,7 +74,7 @@ func runApplication() error {
 	// Инициализируем хранилище
 	InitStore(ctx)
 	// Запускаем синхронизацию хранилища, если оно это подразумевает
-	if st, ok := metrics.MeStore.(metrics.SynchronizationStorage); ok {
+	if st, ok := metrics.MeStore.(metrics.ISynchronizationStorage); ok {
 		ctx = context.WithValue(ctx, contextkeys.SyncInterval, config.Params.StoreInterval)
 		// Запускаем синхронизацию в файл
 		if !st.IsSyncMode() {
@@ -112,7 +112,7 @@ func runApplication() error {
 
 // closeStorage функция закрытия хранилища
 func closeStorage() {
-	st, ok := metrics.MeStore.(metrics.SynchronizationStorage)
+	st, ok := metrics.MeStore.(metrics.ISynchronizationStorage)
 	if !ok {
 		return
 	}
@@ -134,6 +134,7 @@ func initServer() *http.Server {
 	return &server
 }
 
+// stopServer корректно завершает работу предоставленного HTTP-сервера, используя заданный контекст. Регистрирует ошибки в случае сбоя завершения работы.
 func stopServer(server *http.Server, ctx context.Context) error {
 	// Заставляем завершиться сервер и ждём его завершения
 	err := server.Shutdown(ctx)

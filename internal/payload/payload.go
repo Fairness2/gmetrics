@@ -14,6 +14,7 @@ var ResponseSuccessStatus = "success"
 // ResponseErrorStatus статус, что метрика установлена не удачно
 var ResponseErrorStatus = "error"
 
+// ResponseBody представляет структуру типичного тела ответа API.
 type ResponseBody struct {
 	Status  string  `json:"status"` // Успешный или не успешный результат
 	ID      string  `json:"id,omitempty"`

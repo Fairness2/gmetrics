@@ -11,14 +11,15 @@ import (
 	"net/http"
 )
 
-var t *template.Template // Массив для хранения шиблонов с их именами
+// t Массив для хранения шиблонов с их именами
+var t *template.Template
 
+// baseTemplate содержит встроенную файловую систему со всеми файлами шаблонов, расположенными в каталоге шаблонов.
+//
 //go:embed templates/*
 var baseTemplate embed.FS
 
-//go:embed templates/metrics.gohtml
-var metricsTemplate string
-
+// init инициализирует систему шаблонов приложения, анализируя и загружая шаблоны в глобальную переменную шаблона.
 func init() {
 
 	// Синтаксический разбор шаблона всегда в готовую переменную
@@ -31,6 +32,14 @@ func init() {
 // Parameters:
 // - response: http.ResponseWriter объект, содержащий информацию о ответе HTTP.
 // - request: http.Request объект, содержащий информацию о запросе HTTP.
+//
+// @Summary	  Возвращает страницу с метриками
+// @Description  Возвращает страницу с метриками
+// @Tags		 Метрики
+// @Produce	  html
+// @Success	  200  {object}  string  "Metrics page"
+// @Failure	  500  {object}  string  "Internal Server Error"
+// @Router / [get]
 func Handler(response http.ResponseWriter, request *http.Request) {
 	gauges, errGauge := metrics.MeStore.GetGauges()
 	if errGauge != nil {
@@ -77,6 +86,7 @@ func Handler(response http.ResponseWriter, request *http.Request) {
 	}
 }
 
+// ShowedMetrics представляет собой структурированную метрику с именем и значением, которые будут отображаться в пользовательском интерфейсе.
 type ShowedMetrics struct {
 	Name  string
 	Value string

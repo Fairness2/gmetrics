@@ -42,7 +42,7 @@ func BenchmarkDBStorage_SetMetrics(b *testing.B) {
 			executor.EXPECT().BeginTx(gomock.Any(), gomock.Any()).AnyTimes().Return(&sql.Tx{}, nil)
 			storage := NewMemStorage()
 			store := &DBStorage{
-				Storage:  storage,
+				IStorage: storage,
 				storeCtx: ctx,
 				db:       executor,
 				syncMode: false,

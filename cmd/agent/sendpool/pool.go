@@ -18,6 +18,8 @@ import (
 
 // ErrorPoolIsClosed ошибка, что пул закрыт
 var ErrorPoolIsClosed = errors.New("pool is closed")
+
+// ErrorEmptyHashKey указывает, что хэш-ключ пуст при попытке хэширования тела.
 var ErrorEmptyHashKey = errors.New("hash key is empty")
 
 type IClient interface {
@@ -46,6 +48,7 @@ type Pool struct {
 	HashKey          string
 }
 
+// newEncoder создает и возвращает новый модуль записи gzip с лучшим уровнем скорости сжатия.
 func newEncoder() interface{} {
 	writer, err := gzip.NewWriterLevel(nil, gzip.BestSpeed)
 	if err != nil {
@@ -61,6 +64,7 @@ func New(ctx context.Context, size int, HashKey, ServerURL string) *Pool {
 	return NewWithClient(ctx, size, HashKey, NewRestClient(ServerURL))
 }
 
+// NewWithClient инициализирует новый пул с заданным размером, хеш-ключом и rest-клиентом и запускает рабочие горутины.
 func NewWithClient(ctx context.Context, size int, HashKey string, client IClient) *Pool {
 	in := make(chan *poolPayload, size)
 	pool := &Pool{

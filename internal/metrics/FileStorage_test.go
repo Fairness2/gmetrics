@@ -239,8 +239,8 @@ func TestRestoreFromFile(t *testing.T) {
 			if tc.hasFile {
 				_ = os.WriteFile(tc.fileName, []byte(tc.fileContent), 0644)
 			}
-			memStore := DurationFileStorage{Storage: NewMemStorage()}
-			err := restoreFromFile(tc.fileName, memStore.Storage)
+			memStore := DurationFileStorage{IStorage: NewMemStorage()}
+			err := restoreFromFile(tc.fileName, memStore.IStorage)
 			if tc.isErr {
 				assert.Error(t, err)
 			} else {

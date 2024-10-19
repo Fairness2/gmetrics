@@ -10,11 +10,22 @@ import (
 	"net/http"
 )
 
-// JSONHandler Обработка запроса установки множества метрик через пост запрос с телом
+// JSONManyHandler Обработка запроса установки множества метрик через пост запрос с телом
 //
 // Parameters:
 // - response: http.ResponseWriter объект, содержащий информацию о ответе HTTP
 // - request: http.Request объект, содержащий информацию о запросе HTTP
+//
+// @Summary Обработка запроса установки множества метрик через пост запрос с телом
+// @Description Обработка запроса установки множества метрик через пост запрос с телом
+// @Tags		 Метрики
+// @Accept json
+// @Produce json
+// @Param request body []payload.Metrics true "список метрик"
+// @Success 200 {object} payload.ResponseBody "успешный ответ"
+// @Failure 400 {object} payload.ResponseBody "ошибка запроса"
+// @Failure 500 {object} payload.ResponseBody "внутренняя ошибка"
+// @Router /updates [post]
 func JSONManyHandler(response http.ResponseWriter, request *http.Request) {
 	// Читаем тело запроса
 	rawBody, err := io.ReadAll(request.Body)

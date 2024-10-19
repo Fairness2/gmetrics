@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
+// ErrorStorageDatabaseClosed ошибка, указывающая, что хранилище базы данных уже закрыто.
 var ErrorStorageDatabaseClosed = errors.New("DB storage is already closed")
 
 // SQLExecutor интерфейс с нужными функциями из sql.DB
@@ -25,7 +26,7 @@ type SQLExecutor interface {
 // DBStorage хранилище метрик в базе данных
 // TODO Подумать об очищении значений из памяти по наступлению какого-то события
 type DBStorage struct {
-	Storage
+	IStorage
 	// storeCtx контекст, который отвечает за запросы
 	storeCtx context.Context
 	// db пул соединений с базой данных, которыми может пользоваться хранилище
@@ -40,7 +41,7 @@ type DBStorage struct {
 func NewDBStorage(ctx context.Context, db SQLExecutor, restore bool, syncMode bool) (*DBStorage, error) {
 	storage := NewMemStorage()
 	dbStorage := &DBStorage{
-		Storage:  storage,
+		IStorage: storage,
 		storeCtx: ctx,
 		db:       db,
 		syncMode: syncMode,
@@ -63,7 +64,7 @@ func NewDBStorage(ctx context.Context, db SQLExecutor, restore bool, syncMode bo
 
 // SetGauge устанавливаем gauge
 func (storage *DBStorage) SetGauge(name string, value Gauge) error {
-	err := storage.Storage.SetGauge(name, value)
+	err := storage.IStorage.SetGauge(name, value)
 	if err != nil {
 		return err
 	}
@@ -106,7 +107,7 @@ func (storage *DBStorage) setGauge(name string, value Gauge) error {
 
 // AddCounter добавляем каунтер
 func (storage *DBStorage) AddCounter(name string, value Counter) error {
-	err := storage.Storage.AddCounter(name, value)
+	err := storage.IStorage.AddCounter(name, value)
 	if err != nil {
 		return err
 	}
@@ -150,7 +151,7 @@ func (storage *DBStorage) addCounter(name string, value Counter) error {
 // GetGauge получение отдельного gauge
 func (storage *DBStorage) GetGauge(name string) (g Gauge, ok bool) {
 	// Ищем в памяти значение
-	g, ok = storage.Storage.GetGauge(name)
+	g, ok = storage.IStorage.GetGauge(name)
 	if ok {
 		return g, ok
 	}
@@ -197,7 +198,7 @@ func (storage *DBStorage) getGauge(name string) (Gauge, error) {
 // GetCounter получение отдельного counter
 func (storage *DBStorage) GetCounter(name string) (c Counter, ok bool) {
 	// Ищем в памяти значение
-	c, ok = storage.Storage.GetCounter(name)
+	c, ok = storage.IStorage.GetCounter(name)
 	if ok {
 		return c, ok
 	}
@@ -244,7 +245,7 @@ func (storage *DBStorage) getCounter(name string) (Counter, error) {
 // GetGauges получение всех gauge
 func (storage *DBStorage) GetGauges() (gauges map[string]Gauge, err error) {
 	// Ищем в памяти значение
-	gauges, err = storage.Storage.GetGauges()
+	gauges, err = storage.IStorage.GetGauges()
 	if err != nil {
 		return gauges, err
 	}
@@ -308,7 +309,7 @@ func (storage *DBStorage) getGauges() (map[string]Gauge, error) {
 // GetCounters получение всех counter
 func (storage *DBStorage) GetCounters() (counters map[string]Counter, err error) {
 	// Ищем в памяти значение
-	counters, err = storage.Storage.GetCounters()
+	counters, err = storage.IStorage.GetCounters()
 	if err != nil {
 		return counters, err
 	}
@@ -368,7 +369,7 @@ func (storage *DBStorage) getCounters() (map[string]Counter, error) {
 
 // SetGauges массовое обновление метрик Гауге
 func (storage *DBStorage) SetGauges(gauges map[string]Gauge) (err error) {
-	err = storage.Storage.SetGauges(gauges)
+	err = storage.IStorage.SetGauges(gauges)
 	if err != nil || !storage.syncMode {
 		return err
 	}
@@ -431,7 +432,7 @@ func (storage *DBStorage) setGauges(gauges map[string]Gauge) error {
 
 // AddCounters массовое обновление метрик Каунтер
 func (storage *DBStorage) AddCounters(counters map[string]Counter) (err error) {
-	err = storage.Storage.AddCounters(counters)
+	err = storage.IStorage.AddCounters(counters)
 	if err != nil || !storage.syncMode {
 		return err
 	}
@@ -505,7 +506,7 @@ func (storage *DBStorage) restore() error {
 	if err != nil {
 		return err
 	}
-	err = storage.Storage.SetGauges(gauges)
+	err = storage.IStorage.SetGauges(gauges)
 	if err != nil {
 		return err
 	}
@@ -513,7 +514,7 @@ func (storage *DBStorage) restore() error {
 	if err != nil {
 		return err
 	}
-	err = storage.Storage.AddCounters(counters)
+	err = storage.IStorage.AddCounters(counters)
 	if err != nil {
 		return err
 	}
@@ -551,14 +552,14 @@ func (storage *DBStorage) Flush() error {
 	if storage.close {
 		return ErrorStorageDatabaseClosed
 	}
-	gauges, err := storage.Storage.GetGauges()
+	gauges, err := storage.IStorage.GetGauges()
 	if err != nil {
 		return err
 	}
 	if err = storage.syncGauges(gauges); err != nil {
 		return err
 	}
-	counters, err := storage.Storage.GetCounters()
+	counters, err := storage.IStorage.GetCounters()
 	if err != nil {
 		return err
 	}

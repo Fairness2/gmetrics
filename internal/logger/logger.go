@@ -5,6 +5,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// ILogger определяет набор методов ведения журнала с различными уровнями серьезности.
 type ILogger interface {
 	Info(args ...interface{})
 	Infof(template string, args ...interface{})
