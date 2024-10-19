@@ -2,9 +2,10 @@ package getmetric
 
 import (
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"gmetrics/internal/metrics"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
 )
 
 // URLHandler Возвращает метрику

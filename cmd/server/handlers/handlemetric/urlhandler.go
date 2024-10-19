@@ -3,10 +3,11 @@ package handlemetric
 import (
 	"errors"
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"gmetrics/internal/helpers"
 	"gmetrics/internal/logger"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
 )
 
 // URLHandler Обработка запроса установки метрики через параметры в строке урл

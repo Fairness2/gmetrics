@@ -3,8 +3,9 @@ package metrics
 import (
 	"context"
 	"database/sql"
-	"github.com/golang/mock/gomock"
 	"testing"
+
+	"github.com/golang/mock/gomock"
 )
 
 func BenchmarkDBStorage_SetMetrics(b *testing.B) {

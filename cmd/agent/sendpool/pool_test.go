@@ -3,14 +3,15 @@ package sendpool
 import (
 	"context"
 	"errors"
-	"github.com/go-resty/resty/v2"
-	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/payload"
 	"net/http"
 	"sync"
 	"testing"
+
+	"github.com/go-resty/resty/v2"
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
 )
 
 func Benchmark(b *testing.B) {

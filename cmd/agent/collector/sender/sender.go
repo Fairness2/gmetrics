@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/go-resty/resty/v2"
 	"gmetrics/cmd/agent/collector/collection"
 	"gmetrics/cmd/agent/config"
 	"gmetrics/internal/logger"
@@ -13,6 +12,8 @@ import (
 	"gmetrics/internal/payload"
 	"net/http"
 	"time"
+
+	"github.com/go-resty/resty/v2"
 )
 
 type Client struct {

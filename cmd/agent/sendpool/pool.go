@@ -9,10 +9,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"github.com/go-resty/resty/v2"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/payload"
 	"sync"
+
+	"github.com/go-resty/resty/v2"
 )
 
 // ErrorPoolIsClosed ошибка, что пул закрыт

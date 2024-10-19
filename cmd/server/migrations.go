@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+
 	"github.com/lopezator/migrator"
 )
 

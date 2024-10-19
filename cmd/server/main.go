@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/go-chi/chi/v5"
-	cMiddleware "github.com/go-chi/chi/v5/middleware"
 	"gmetrics/cmd/server/config"
 	"gmetrics/cmd/server/handlers/getmetric"
 	"gmetrics/cmd/server/handlers/getmetrics"
@@ -15,14 +13,17 @@ import (
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/middlewares"
-	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 	"log"
 	"net/http"
 	_ "net/http/pprof" // подключаем пакет pprof
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/go-chi/chi/v5"
+	cMiddleware "github.com/go-chi/chi/v5/middleware"
+	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 func main() {

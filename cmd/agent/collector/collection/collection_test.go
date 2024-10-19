@@ -1,11 +1,12 @@
 package collection
 
 import (
-	"github.com/stretchr/testify/assert"
 	"gmetrics/internal/metrics"
 	"runtime"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestType_CollectFromMap(t *testing.T) {

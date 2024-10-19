@@ -1,10 +1,11 @@
 package handlemetric
 
 import (
-	"github.com/stretchr/testify/assert"
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/payload"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestUpdateMetricByStringValue(t *testing.T) {

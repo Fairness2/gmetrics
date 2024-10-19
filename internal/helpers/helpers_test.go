@@ -1,13 +1,14 @@
 package helpers
 
 import (
-	"github.com/stretchr/testify/assert"
 	"gmetrics/internal/logger"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSetHTTPError(t *testing.T) {

@@ -7,7 +7,6 @@ import (
 	"gmetrics/cmd/agent/config"
 	"gmetrics/cmd/agent/sendpool"
 	"gmetrics/internal/logger"
-	"go.uber.org/zap"
 	"log"
 	"net/http"
 	_ "net/http/pprof" // подключаем пакет pprof
@@ -15,6 +14,8 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+
+	"go.uber.org/zap"
 )
 
 func main() {
