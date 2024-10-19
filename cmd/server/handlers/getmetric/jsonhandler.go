@@ -15,6 +15,19 @@ import (
 // Parameters:
 // - response: http.ResponseWriter объект, содержащий информацию о ответе HTTP
 // - request: http.Request объект, содержащий информацию о запросе HTTP
+//
+// @Summary JSONHandler
+// @Description Возвращает метрику по запросу с JSON телом
+// @Tags Метрики
+// @Accept json
+// @Produce json
+// @ID
+// @Param request body payload.Metrics true "Metrics payload"
+// @Success 200 {object} payload.Metrics
+// @Failure 400 {object} helpers.ErrorResponse
+// @Failure 404 {object} helpers.ErrorResponse
+// @Failure 500 {object} helpers.ErrorResponse
+// @Router /value [post]
 func JSONHandler(response http.ResponseWriter, request *http.Request) {
 	// Читаем тело запроса
 	rawBody, err := io.ReadAll(request.Body)

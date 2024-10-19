@@ -3,10 +3,11 @@ package handlemetric
 import (
 	"errors"
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"gmetrics/internal/helpers"
 	"gmetrics/internal/logger"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
 )
 
 // URLHandler Обработка запроса установки метрики через параметры в строке урл
@@ -14,6 +15,19 @@ import (
 // Parameters:
 // - response: http.ResponseWriter объект, содержащий информацию о ответе HTTP
 // - request: http.Request объект, содержащий информацию о запросе HTTP
+//
+// @Summary Обработка запроса установки метрики через параметры в строке урл
+// @Description Обработка запроса установки метрики через параметры в строке урл
+// @Tags Метрики
+// @Accept json
+// @Produce json
+// @Param type path string true "Metric type"
+// @Param name path string true "Metric name"
+// @Param value path string true "Metric value"
+// @Success 200 {string} string "metric successfully set"
+// @Failure 400 {object} helpers.ErrorResponse "Invalid URL or parameters"
+// @Failure 500 {object} helpers.ErrorResponse "Internal Server Error"
+// @Router /update/{type}/{name}/{value} [post]
 func URLHandler(response http.ResponseWriter, request *http.Request) {
 	// Шаблон урл: http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
 	metricType, metricName, metricValue, err := parseURL(request)

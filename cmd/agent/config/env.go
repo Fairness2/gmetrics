@@ -14,7 +14,7 @@ const (
 	DefaultLogLevel = "info"
 
 	// DefaultHashKey ключ шифрования по умолчанию
-	DefaultHashKey = ""
+	DefaultHashKey = "aboba"
 
 	// DefaultRateLimit количество одновременно исходящих запросов на сервер
 	DefaultRateLimit = 1

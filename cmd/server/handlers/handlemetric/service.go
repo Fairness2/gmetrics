@@ -103,6 +103,7 @@ func updateMetricByRequestBody(body payload.Metrics) error {
 	return nil
 }
 
+// updateMetricsByRequestBody обновляет Gauge и Counter из предоставленного тела запроса.
 func updateMetricsByRequestBody(bodies []payload.Metrics) error {
 	var (
 		gauges   = make(map[string]metrics.Gauge)

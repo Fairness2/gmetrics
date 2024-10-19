@@ -1,13 +1,14 @@
 package handlemetric
 
 import (
-	"github.com/go-chi/chi/v5"
-	"github.com/go-resty/resty/v2"
-	"github.com/stretchr/testify/assert"
 	"gmetrics/internal/metrics"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-resty/resty/v2"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestJSONManyHandler(t *testing.T) {
@@ -88,6 +89,36 @@ func TestJSONManyHandler(t *testing.T) {
 			res, err := request.Send()
 			assert.NoError(t, err, "error making HTTP request")
 			assert.Equal(t, test.wantStatus, res.StatusCode(), "unexpected response status code")
+		})
+	}
+}
+
+func TestCreateEmptyResponse(t *testing.T) {
+	tests := []struct {
+		name            string
+		responseMessage string
+		wantErr         bool
+	}{
+		{
+			name:            "empty_message",
+			responseMessage: "",
+			wantErr:         false,
+		},
+		{
+			name:            "normal_message",
+			responseMessage: "Test message",
+			wantErr:         false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := createEmptyResponse(test.responseMessage)
+
+			if (err != nil) != test.wantErr {
+				t.Errorf("createEmptyResponse() error = %v, wantErr %v", err, test.wantErr)
+				return
+			}
 		})
 	}
 }

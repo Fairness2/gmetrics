@@ -2,7 +2,7 @@
 // Source: cmd/agent/collector/sender/sender.go
 
 // Package mock is a generated GoMock package.
-package mock
+package sender
 
 import (
 	payload "gmetrics/internal/payload"

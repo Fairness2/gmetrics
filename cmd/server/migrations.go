@@ -2,9 +2,11 @@ package main
 
 import (
 	"database/sql"
+
 	"github.com/lopezator/migrator"
 )
 
+// migrations устанавливает и возвращает экземпляр Migrator, настроенный для миграции базы данных приложения.
 func migrations() (*migrator.Migrator, error) {
 	// Configure migrations
 	m, err := migrator.New(

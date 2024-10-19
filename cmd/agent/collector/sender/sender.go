@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/go-resty/resty/v2"
 	"gmetrics/cmd/agent/collector/collection"
 	"gmetrics/cmd/agent/config"
 	"gmetrics/internal/logger"
@@ -13,8 +12,11 @@ import (
 	"gmetrics/internal/payload"
 	"net/http"
 	"time"
+
+	"github.com/go-resty/resty/v2"
 )
 
+// Client представляет собой клиент для подключения к серверам и отправки метрик.
 type Client struct {
 	client            *resty.Client // Клиент для подключения к серверам
 	metricsCollection *collection.Type
@@ -26,6 +28,7 @@ type Sender interface {
 	Send(body []payload.Metrics) (*resty.Response, error)
 }
 
+// New инициализирует и возвращает новый экземпляр клиента с заданным набором метрик и пулом отправки.
 func New(mCollection *collection.Type, sendPool Sender) *Client {
 	c := &Client{
 		metricsCollection: mCollection,

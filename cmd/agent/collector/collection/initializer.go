@@ -3,14 +3,15 @@ package collection
 import (
 	"context"
 	"fmt"
-	"github.com/shirou/gopsutil/v4/cpu"
-	"github.com/shirou/gopsutil/v4/mem"
 	"gmetrics/cmd/agent/config"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/mem"
 )
 
 // Collection represents a CollectionType of metrics, including various gauges and a counter.

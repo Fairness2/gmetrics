@@ -1,12 +1,14 @@
 package helpers
 
 import (
-	"github.com/stretchr/testify/assert"
 	"gmetrics/internal/logger"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSetHTTPError(t *testing.T) {
@@ -57,6 +59,37 @@ func TestSetHTTPError(t *testing.T) {
 			body, err := io.ReadAll(result.Body)
 			assert.NoError(t, err)
 			assert.Equal(t, c.expectedResponse, string(body))
+		})
+	}
+}
+
+func TestGetErrorJSONBody(t *testing.T) {
+	cases := []struct {
+		name         string
+		message      string
+		expectedData string
+	}{
+		{
+			name:         "standard_error",
+			message:      "An error occurred",
+			expectedData: "{\"status\":\"error\",\"message\":\"An error occurred\"}",
+		},
+		{
+			name:         "empty_error",
+			message:      "",
+			expectedData: "{\"status\":\"error\"}",
+		},
+		{
+			name:         "long_error",
+			message:      strings.Repeat("A", 1024),
+			expectedData: "{\"status\":\"error\",\"message\":\"" + strings.Repeat("A", 1024) + "\"}",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			result := GetErrorJSONBody(c.message)
+			assert.Equal(t, c.expectedData, string(result))
 		})
 	}
 }
