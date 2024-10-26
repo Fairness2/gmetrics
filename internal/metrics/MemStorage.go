@@ -13,6 +13,12 @@ type MemStorage struct {
 func (storage *MemStorage) SetGauge(name string, value Gauge) error {
 	storage.mutex.Lock()
 	defer storage.mutex.Unlock()
+	return storage.unsafeSetGauge(name, value)
+}
+
+// unsafeSetGauge устанавливает значение Gauge для данного имени без какой-либо блокировки.
+// Предполагается, что вызывающая функция обрабатывает все необходимое управление параллелизмом.
+func (storage *MemStorage) unsafeSetGauge(name string, value Gauge) error {
 	storage.Gauge[name] = value
 	return nil
 }
@@ -21,6 +27,12 @@ func (storage *MemStorage) SetGauge(name string, value Gauge) error {
 func (storage *MemStorage) AddCounter(name string, value Counter) error {
 	storage.mutex.Lock()
 	defer storage.mutex.Unlock()
+	return storage.unsafeAddCounter(name, value)
+}
+
+// unsafeAddCounter устанавливает значение Counter для данного имени без какой-либо блокировки.
+// Предполагается, что вызывающая функция обрабатывает все необходимое управление параллелизмом.
+func (storage *MemStorage) unsafeAddCounter(name string, value Counter) error {
 	oldValue, ok := storage.Counter[name]
 	if ok {
 		value = oldValue.Add(value)
@@ -71,18 +83,22 @@ func (storage *MemStorage) GetCounters() (map[string]Counter, error) {
 
 // SetGauges массовое обновление гауге в памяти
 func (storage *MemStorage) SetGauges(gauges map[string]Gauge) error {
+	storage.mutex.Lock()
+	defer storage.mutex.Unlock()
 	for name, gauge := range gauges {
-		if err := storage.SetGauge(name, gauge); err != nil {
+		if err := storage.unsafeSetGauge(name, gauge); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// AddCounters массовое обновление каунтер  в памяти
+// AddCounters массовое обновление каунтер в памяти
 func (storage *MemStorage) AddCounters(counters map[string]Counter) error {
+	storage.mutex.Lock()
+	defer storage.mutex.Unlock()
 	for name, counter := range counters {
-		if err := storage.AddCounter(name, counter); err != nil {
+		if err := storage.unsafeAddCounter(name, counter); err != nil {
 			return err
 		}
 	}

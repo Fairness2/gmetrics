@@ -20,7 +20,7 @@ type Writer interface {
 
 // DurationFileStorage хранилище с циклической записью в файл данных
 type DurationFileStorage struct {
-	Storage
+	IStorage
 	writer   Writer
 	syncMode bool // Флаг синхронного режима, в нём после записи в хранилище, сразу оно будет записано в файл
 }
@@ -32,7 +32,7 @@ func (storage *DurationFileStorage) IsSyncMode() bool {
 
 // Flush запись данных в файл
 func (storage *DurationFileStorage) Flush() error {
-	return storage.writer.Write(storage.Storage)
+	return storage.writer.Write(storage.IStorage)
 }
 
 // Sync синхронизация данных хранилища в файл по таймеру
@@ -77,7 +77,7 @@ func (storage *DurationFileStorage) FlushAndClose() error {
 
 // SetGauge переопределённый метод с записью в файл в случае синхронного режима
 func (storage *DurationFileStorage) SetGauge(name string, value Gauge) error {
-	err := storage.Storage.SetGauge(name, value)
+	err := storage.IStorage.SetGauge(name, value)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (storage *DurationFileStorage) SetGauge(name string, value Gauge) error {
 
 // AddCounter переопределённый метод с записью в файл в случае синхронного режима
 func (storage *DurationFileStorage) AddCounter(name string, value Counter) error {
-	err := storage.Storage.AddCounter(name, value)
+	err := storage.IStorage.AddCounter(name, value)
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (storage *DurationFileStorage) AddCounter(name string, value Counter) error
 
 // SetGauges массовое обновление гауге
 func (storage *DurationFileStorage) SetGauges(gauges map[string]Gauge) error {
-	err := storage.Storage.SetGauges(gauges)
+	err := storage.IStorage.SetGauges(gauges)
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func (storage *DurationFileStorage) SetGauges(gauges map[string]Gauge) error {
 
 // AddCounters массовое обновление каунтер
 func (storage *DurationFileStorage) AddCounters(counters map[string]Counter) error {
-	err := storage.Storage.AddCounters(counters)
+	err := storage.IStorage.AddCounters(counters)
 	if err != nil {
 		return err
 	}
@@ -150,14 +150,14 @@ func NewFileStorage(filename string, restore bool, syncMode bool) (*DurationFile
 		return nil, err
 	}
 	return &DurationFileStorage{
-		Storage:  storage,
+		IStorage: storage,
 		writer:   writer,
 		syncMode: syncMode,
 	}, nil
 }
 
 // restoreFromFile чтение данных из файла при инициализации хранилища
-func restoreFromFile(filename string, storage Storage) error {
+func restoreFromFile(filename string, storage IStorage) error {
 	file, err := os.Open(filename)
 	if err != nil {
 		return err

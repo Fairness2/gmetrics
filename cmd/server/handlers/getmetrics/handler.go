@@ -2,6 +2,7 @@ package getmetrics
 
 import (
 	"bytes"
+	"embed"
 	"gmetrics/internal/helpers"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
@@ -9,15 +10,20 @@ import (
 	"net/http"
 )
 
-var t *template.Template // Массив для хранения шиблонов с их именами
+// t Массив для хранения шиблонов с их именами
+var t *template.Template
 
+// baseTemplate содержит встроенную файловую систему со всеми файлами шаблонов, расположенными в каталоге шаблонов.
+//
+//go:embed templates/*
+var baseTemplate embed.FS
+
+// init инициализирует систему шаблонов приложения, анализируя и загружая шаблоны в глобальную переменную шаблона.
 func init() {
 
 	// Синтаксический разбор шаблона всегда в готовую переменную
 	// Загрузка шаблонов вместе с основным шаблоном
-	t = template.Must(template.New("metrics.gohtml").ParseFiles(
-		"cmd/server/web/templates/base.gohtml",
-		"cmd/server/web/templates/metrics.gohtml"))
+	t = template.Must(template.New("metrics.gohtml").ParseFS(baseTemplate, "templates/base.gohtml", "templates/metrics.gohtml"))
 }
 
 // Handler Возвращает страницу с метриками
@@ -25,6 +31,14 @@ func init() {
 // Parameters:
 // - response: http.ResponseWriter объект, содержащий информацию о ответе HTTP.
 // - request: http.Request объект, содержащий информацию о запросе HTTP.
+//
+// @Summary	  Возвращает страницу с метриками
+// @Description  Возвращает страницу с метриками
+// @Tags		 Метрики
+// @Produce	  html
+// @Success	  200  {object}  string  "Metrics page"
+// @Failure	  500  {object}  string  "Internal Server Error"
+// @Router / [get]
 func Handler(response http.ResponseWriter, request *http.Request) {
 	gauges, errGauge := metrics.MeStore.GetGauges()
 	if errGauge != nil {
@@ -71,6 +85,7 @@ func Handler(response http.ResponseWriter, request *http.Request) {
 	}
 }
 
+// ShowedMetrics представляет собой структурированную метрику с именем и значением, которые будут отображаться в пользовательском интерфейсе.
 type ShowedMetrics struct {
 	Name  string
 	Value string

@@ -2,8 +2,11 @@ package compress
 
 import (
 	"compress/gzip"
+	"errors"
+	"gmetrics/internal/logger"
 	"io"
 	"net/http"
+	"sync"
 )
 
 // Reader представляет io.ReadCloser, который разжимает данные, считанные из базового средства чтения.
@@ -56,14 +59,53 @@ func NewGZIPReader(original io.ReadCloser) (*Reader, error) {
 	}, nil
 }
 
-// NewGZIPHTTPWriter возвращает новый экземпляр HttpWriter, который использует gzip.Writer для сжатия данных из оригинального http.ResponseWriter
-func NewGZIPHTTPWriter(original http.ResponseWriter) (*HTTPWriter, error) {
-	writer, err := gzip.NewWriterLevel(original, gzip.BestSpeed)
-	if err != nil {
-		return nil, err
+// writerPool представляет собой синглтон экземпляр WriterPool, управляющий многократно используемыми экземплярами gzip.Writer для оптимизации ресурсов.
+var writerPool *WriterPool
+
+// writerOnce гарантирует, что writerPool инициализируется только один раз с помощью sync.Once, обеспечивая потокобезопасную отложенную инициализацию.
+var writerOnce sync.Once
+
+// GetGZIPHTTPWriter возвращает новый экземпляр HttpWriter, который использует gzip.Writer для сжатия данных из оригинального http.ResponseWriter
+func GetGZIPHTTPWriter(original http.ResponseWriter) (*HTTPWriter, error) {
+	writerOnce.Do(func() {
+		writerPool = NewWriterPool()
+	})
+	writer := writerPool.Get()
+	writer.Reset(original)
+	if writer == nil {
+		return nil, errors.New("can't get gzip writer")
 	}
 	return &HTTPWriter{
 		ResponseWriter: original,
 		cWriter:        writer,
 	}, nil
+}
+
+// WriterPool управляет пулом повторно используемых экземпляров gzip.Writer для оптимизации использования ресурсов и повышения производительности.
+type WriterPool struct {
+	pool sync.Pool
+}
+
+// NewWriterPool Создание нового пула врайтеров со сжатием
+func NewWriterPool() *WriterPool {
+	return &WriterPool{
+		pool: sync.Pool{
+			New: newEncoder,
+		},
+	}
+}
+
+// Get Получение врайтера из пула готовых
+func (wp *WriterPool) Get() *gzip.Writer {
+	return wp.pool.Get().(*gzip.Writer)
+}
+
+// newEncoder инициализирует и возвращает новый gzip.Writer. Возвращает ноль в случае возникновения ошибки.
+func newEncoder() interface{} {
+	writer, err := gzip.NewWriterLevel(nil, gzip.BestSpeed)
+	if err != nil {
+		logger.Log.Error(err)
+		return nil
+	}
+	return writer
 }

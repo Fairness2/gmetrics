@@ -3,8 +3,9 @@ package config
 import (
 	"errors"
 	"flag"
-	"github.com/caarlos0/env/v6"
 	"strings"
+
+	"github.com/caarlos0/env/v6"
 )
 
 // Parse инициализирует новую консольную конфигурацию, обрабатывает аргументы командной строки

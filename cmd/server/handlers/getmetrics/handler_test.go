@@ -2,40 +2,15 @@ package getmetrics
 
 import (
 	"gmetrics/internal/metrics"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-resty/resty/v2"
+	"github.com/stretchr/testify/assert"
 )
 
-type MockMeStore struct {
-	gauges   map[string]metrics.Gauge
-	counters map[string]metrics.Counter
-}
-
-type MockMetrics struct{}
-
-func (ms *MockMeStore) GetGauges() map[string]metrics.Gauge {
-	return ms.gauges
-}
-
-func (ms *MockMeStore) GetCounters() map[string]metrics.Counter {
-	return ms.counters
-}
-
-func (ms *MockMeStore) GetGauge(name string) (metrics.Gauge, bool) {
-	return 5, true
-}
-
-func (ms *MockMeStore) GetCounter(name string) (metrics.Counter, bool) {
-	return 5, true
-}
-
-func (ms *MockMeStore) SetGauge(name string, value metrics.Gauge) {
-
-}
-
-func (ms *MockMeStore) AddCounter(name string, value metrics.Counter) {
-
-}
-
-/* TODO Пропускаем из-за того, что пока не подключаются файлы,так как пути относительные, и они различаются при запуске теста и сборке сервера
 func TestHandler(t *testing.T) {
 	type args struct {
 		gauges   map[string]metrics.Gauge
@@ -100,14 +75,15 @@ func TestHandler(t *testing.T) {
 		},
 	}
 
+	stor := metrics.NewMemStorage()
+
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			router := chi.NewRouter()
 			router.Get("/", func(writer http.ResponseWriter, request *http.Request) {
-				metrics.MeStore = &MockMeStore{
-					gauges:   tc.values.gauges,
-					counters: tc.values.counters,
-				}
+				stor.Gauge = tc.values.gauges
+				stor.Counter = tc.values.counters
+				metrics.MeStore = stor
 				Handler(writer, request)
 			})
 			// запускаем тестовый сервер, будет выбран первый свободный порт
@@ -127,4 +103,4 @@ func TestHandler(t *testing.T) {
 
 		})
 	}
-}*/
+}

@@ -5,8 +5,8 @@ import (
 	"io"
 )
 
-// Storage represents an interface for accessing and manipulating metrics storage.
-type Storage interface {
+// IStorage represents an interface for accessing and manipulating metrics storage.
+type IStorage interface {
 	// GetGauges получение всех gauge
 	GetGauges() (map[string]Gauge, error)
 	// GetCounters получение всех counter
@@ -25,7 +25,8 @@ type Storage interface {
 	AddCounters(map[string]Counter) error
 }
 
-type SynchronizationStorage interface {
+// ISynchronizationStorage Интерфейс
+type ISynchronizationStorage interface {
 	io.Closer
 	// Flush сохраняем не сохранённые элементы
 	Flush() error
@@ -38,4 +39,4 @@ type SynchronizationStorage interface {
 }
 
 // MeStore Хранилище метрик в памяти.
-var MeStore Storage
+var MeStore IStorage

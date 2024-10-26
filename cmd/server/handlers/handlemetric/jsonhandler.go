@@ -17,6 +17,16 @@ import (
 // Parameters:
 // - response: http.ResponseWriter объект, содержащий информацию о ответе HTTP
 // - request: http.Request объект, содержащий информацию о запросе HTTP
+// @Summary Обработка запроса установки метрики через пост запрос с телом
+// @Description Обработка запроса установки метрики через пост запрос с телом
+// @Accept json
+// @Produce json
+// @Tags		 Метрики
+// @Param metric body payload.Metrics true "Метрика"
+// @Success 200 {object} payload.ResponseBody "Метрика успешно добавлена"
+// @Failure 400 {object} payload.ErrorResponse "Неправильный запрос"
+// @Failure 500 {object} payload.ErrorResponse "Внутренняя ошибка сервера"
+// @Router /update [post]
 func JSONHandler(response http.ResponseWriter, request *http.Request) {
 	// Читаем тело запроса
 	rawBody, err := io.ReadAll(request.Body)

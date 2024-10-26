@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/go-chi/chi/v5"
-	cMiddleware "github.com/go-chi/chi/v5/middleware"
 	"gmetrics/cmd/server/config"
 	"gmetrics/cmd/server/handlers/getmetric"
 	"gmetrics/cmd/server/handlers/getmetrics"
@@ -15,16 +13,23 @@ import (
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/middlewares"
-	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 	"log"
 	"net/http"
+	_ "net/http/pprof" // подключаем пакет pprof
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/go-chi/chi/v5"
+	cMiddleware "github.com/go-chi/chi/v5/middleware"
+	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 	// Устанавливаем настройки
 	cnf, err := config.Parse()
 	if err != nil {
@@ -69,7 +74,7 @@ func runApplication() error {
 	// Инициализируем хранилище
 	InitStore(ctx)
 	// Запускаем синхронизацию хранилища, если оно это подразумевает
-	if st, ok := metrics.MeStore.(metrics.SynchronizationStorage); ok {
+	if st, ok := metrics.MeStore.(metrics.ISynchronizationStorage); ok {
 		ctx = context.WithValue(ctx, contextkeys.SyncInterval, config.Params.StoreInterval)
 		// Запускаем синхронизацию в файл
 		if !st.IsSyncMode() {
@@ -107,7 +112,7 @@ func runApplication() error {
 
 // closeStorage функция закрытия хранилища
 func closeStorage() {
-	st, ok := metrics.MeStore.(metrics.SynchronizationStorage)
+	st, ok := metrics.MeStore.(metrics.ISynchronizationStorage)
 	if !ok {
 		return
 	}
@@ -129,6 +134,7 @@ func initServer() *http.Server {
 	return &server
 }
 
+// stopServer корректно завершает работу предоставленного HTTP-сервера, используя заданный контекст. Регистрирует ошибки в случае сбоя завершения работы.
 func stopServer(server *http.Server, ctx context.Context) error {
 	// Заставляем завершиться сервер и ждём его завершения
 	err := server.Shutdown(ctx)
@@ -158,7 +164,7 @@ func getRouter() chi.Router {
 	router.Get("/value/{type}/{name}", getmetric.URLHandler)
 
 	// проверка состояния соединения с базой данных
-	router.Get("/ping", ping.Handler)
+	router.Get("/ping", ping.NewController(database.DB).Handler)
 
 	router.Group(func(r chi.Router) {
 		// Устанавилваем мидлваре

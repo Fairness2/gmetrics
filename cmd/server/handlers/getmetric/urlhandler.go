@@ -2,9 +2,10 @@ package getmetric
 
 import (
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"gmetrics/internal/metrics"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
 )
 
 // URLHandler Возвращает метрику
@@ -12,6 +13,17 @@ import (
 // Parameters:
 // - response: http.ResponseWriter объект, содержащий информацию о ответе HTTP.
 // - request: http.Request объект, содержащий информацию о запросе HTTP.
+//
+// @Summary Возвращает метрику
+// @Description Данный хэндлер позволяет получить значение метрики по её типу и имени
+// @Tags Метрики
+// @Accept  json
+// @Produce  json
+// @Param type path string true "Тип метрики"
+// @Param name path string true "Имя метрики"
+// @Success 200 {string} string "значение метрики"
+// @Failure 404 {string} string "метрика не найдена"
+// @Router /value/{type}/{name} [get]
 func URLHandler(response http.ResponseWriter, request *http.Request) {
 	metricType, metricName, err := parseURL(request)
 	if err != nil {
