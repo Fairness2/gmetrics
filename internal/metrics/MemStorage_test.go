@@ -231,8 +231,12 @@ func BenchmarkMemStorage_SetMetrics(b *testing.B) {
 			store := NewMemStorage()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				store.SetGauges(bm.gauges)
-				store.AddCounters(bm.counters)
+				if err := store.SetGauges(bm.gauges); err != nil {
+					b.Error(err, "error setting gauges")
+				}
+				if err := store.AddCounters(bm.counters); err != nil {
+					b.Error(err, "error add counters")
+				}
 			}
 		})
 	}

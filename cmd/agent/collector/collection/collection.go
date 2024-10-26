@@ -10,14 +10,13 @@ import (
 
 // Type represents a CollectionType of metrics, including various gauges and a counter.
 type Type struct {
+	// mutex Мьютекс для устранения состояния гонки при параллельных внесениях изменений в кэш
+	// mutex TODO Пока убрал RWMutex, так как с обычным работать проще, а в команде на отправку сбрасываем каунтер
+	mutex *sync.Mutex
 	// Values Мапа со значениями собираемых метрик
 	Values map[string]any
 	// PollCount счётчик, увеличивающийся на 1 при каждом обновлении метрики из пакета runtime
 	PollCount metrics.Counter
-
-	// mutex Мьютекс для устранения состояния гонки при параллельных внесениях изменений в кэш
-	// mutex TODO Пока убрал RWMutex, так как с обычным работать проще, а в команде на отправку сбрасываем каунтер
-	mutex *sync.Mutex
 }
 
 // Collect Заполнение коллекции из метрик системы

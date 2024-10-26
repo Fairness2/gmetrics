@@ -35,26 +35,41 @@ func BenchmarkFileStorage_SetMetrics(b *testing.B) {
 			store, _ := NewFileStorage("bench.json", false, true)
 			defer func() {
 				_ = store.Close()
-				os.Remove("bench.json")
+				if rErr := os.Remove("bench.json"); rErr != nil {
+					b.Errorf("Cant remove file bench.json")
+				}
 			}()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				store.SetGauges(bm.gauges)
-				store.AddCounters(bm.counters)
+				if err := store.SetGauges(bm.gauges); err != nil {
+					b.Errorf("Cant set gauges: %v", err)
+				}
+				if err := store.AddCounters(bm.counters); err != nil {
+					b.Errorf("Cant add counters: %v", err)
+				}
+
 			}
 		})
 	}
 }
 
 func TestNewFileStorage(t *testing.T) {
-	defer os.Remove("test.json")
+	defer func() {
+		if err := os.Remove("test.json"); err != nil {
+			t.Errorf("Cant remove file test.json")
+		}
+	}()
 	memStore, err := NewFileStorage("test.json", true, true)
 	assert.NoError(t, err, "Cant create file storage")
 	assert.NotNil(t, memStore)
 }
 
 func TestFileStorage_SetGauge(t *testing.T) {
-	defer os.Remove("test.json")
+	defer func() {
+		if err := os.Remove("test.json"); err != nil {
+			t.Errorf("Cant remove file test.json")
+		}
+	}()
 	memStore, err := NewFileStorage("test.json", true, true)
 	assert.NoError(t, err, "Cant create file storage")
 	if err != nil {
@@ -87,7 +102,11 @@ func TestFileStorage_SetGauge(t *testing.T) {
 }
 
 func TestFileStorage_AddCounter(t *testing.T) {
-	defer os.Remove("test.json")
+	defer func() {
+		if err := os.Remove("test.json"); err != nil {
+			t.Errorf("Cant remove file test.json")
+		}
+	}()
 	memStore, err := NewFileStorage("test.json", true, true)
 	assert.NoError(t, err, "Cant create file storage")
 	if err != nil {
@@ -123,7 +142,11 @@ func TestFileStorage_AddCounter(t *testing.T) {
 }
 
 func TestFileStorage_GetGauge(t *testing.T) {
-	defer os.Remove("test.json")
+	defer func() {
+		if err := os.Remove("test.json"); err != nil {
+			t.Errorf("Cant remove file test.json")
+		}
+	}()
 	memStore, err := NewFileStorage("test.json", true, true)
 	assert.NoError(t, err, "Cant create file storage")
 	if err != nil {
@@ -164,7 +187,11 @@ func TestFileStorage_GetGauge(t *testing.T) {
 }
 
 func TestFileStorage_GetCounter(t *testing.T) {
-	defer os.Remove("test.json")
+	defer func() {
+		if err := os.Remove("test.json"); err != nil {
+			t.Errorf("Cant remove file test.json")
+		}
+	}()
 	memStore, err := NewFileStorage("test.json", true, true)
 	assert.NoError(t, err, "Cant create file storage")
 	if err != nil {
@@ -235,7 +262,11 @@ func TestRestoreFromFile(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			defer os.Remove(tc.fileName)
+			defer func() {
+				if err := os.Remove(tc.fileName); err != nil {
+					t.Errorf("Cant remove file %s", tc.fileName)
+				}
+			}()
 			if tc.hasFile {
 				_ = os.WriteFile(tc.fileName, []byte(tc.fileContent), 0644)
 			}

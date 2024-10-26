@@ -50,8 +50,12 @@ func BenchmarkDBStorage_SetMetrics(b *testing.B) {
 			}
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				store.SetGauges(bm.gauges)
-				store.AddCounters(bm.counters)
+				if err := store.SetGauges(bm.gauges); err != nil {
+					b.Fatal(err)
+				}
+				if err := store.AddCounters(bm.counters); err != nil {
+					b.Fatal(err)
+				}
 			}
 		})
 	}

@@ -11,8 +11,8 @@ import (
 
 func TestType_CollectFromMap(t *testing.T) {
 	tests := []struct {
-		name  string
 		stats map[string]metrics.Gauge
+		name  string
 	}{
 		{
 			name:  "empty_metrics",

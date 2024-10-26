@@ -22,16 +22,16 @@ const (
 
 // CliConfig конфигурация клиента из командной строки
 type CliConfig struct {
-	// PollInterval Интервал между сборкой данных
-	PollInterval int64 `env:"POLL_INTERVAL"`
-	// ReportInterval Интервал между отправкой данных
-	ReportInterval int64 `env:"REPORT_INTERVAL"`
 	// ServerURL Url сервера получателя метрик
 	ServerURL string `env:"ADDRESS"`
 	// Уровень логирования
 	LogLevel string `env:"LOG_LEVEL"`
 	// HashKey Ключ для шифрования
 	HashKey string `env:"KEY"`
+	// PollInterval Интервал между сборкой данных
+	PollInterval int64 `env:"POLL_INTERVAL"`
+	// ReportInterval Интервал между отправкой данных
+	ReportInterval int64 `env:"REPORT_INTERVAL"`
 	// RateLimit количество одновременно исходящих запросов на сервер
 	RateLimit int `env:"RATE_LIMIT"`
 }

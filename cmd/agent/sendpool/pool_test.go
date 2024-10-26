@@ -37,7 +37,9 @@ func Benchmark(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		p.Send(body)
+		if _, sErr := p.Send(body); sErr != nil {
+			b.Errorf("Send() error = %v", sErr)
+		}
 	}
 }
 

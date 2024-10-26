@@ -2,10 +2,10 @@ package payload
 
 // Metrics описывает структуру данных для представления метрик.
 type Metrics struct {
+	Value *float64 `json:"value,omitempty"` // Значение метрики в случае передачи gauge
+	Delta *int64   `json:"delta,omitempty"` // Значение метрики в случае передачи counter
 	ID    string   `json:"id"`              // Имя метрики
 	MType string   `json:"type"`            // Параметр, принимающий значение gauge или counter
-	Delta *int64   `json:"delta,omitempty"` // Значение метрики в случае передачи counter
-	Value *float64 `json:"value,omitempty"` // Значение метрики в случае передачи gauge
 }
 
 // ResponseSuccessStatus статус, что метрика установлена удачно

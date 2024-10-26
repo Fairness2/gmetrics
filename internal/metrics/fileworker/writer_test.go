@@ -30,7 +30,7 @@ func TestNewWriter(t *testing.T) {
 			}
 
 			if err == nil {
-				if _, err := os.Stat(tc.filename); os.IsNotExist(err) {
+				if _, err = os.Stat(tc.filename); os.IsNotExist(err) {
 					assert.Fail(t, "NewWriter() should have created file but didn't")
 				}
 
@@ -58,13 +58,21 @@ func TestJSONWriter_Write(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer os.Remove(f.Name())
+			defer func() {
+				if rErr := os.Remove(f.Name()); rErr != nil {
+					t.Fatal(rErr)
+				}
+			}()
 
 			writer, err := NewWriter(f.Name())
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer writer.Close()
+			defer func() {
+				if cErr := writer.Close(); err != nil {
+					t.Fatal(cErr)
+				}
+			}()
 
 			err = writer.Write(tc.content)
 

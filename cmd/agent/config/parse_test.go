@@ -95,7 +95,10 @@ func TestParseFromEnv(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			os.Clearenv()
 			for k, v := range tc.input {
-				os.Setenv(k, v)
+				if setErr := os.Setenv(k, v); setErr != nil {
+					assert.Error(t, setErr, "Failed to set environment variable %q", k)
+					return
+				}
 			}
 			actual := &CliConfig{}
 			if err := parseFromEnv(actual); err != nil {
@@ -198,7 +201,10 @@ func TestParse(t *testing.T) {
 			flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.PanicOnError)
 			os.Clearenv()
 			for k, v := range tc.envInput {
-				os.Setenv(k, v)
+				if setErr := os.Setenv(k, v); setErr != nil {
+					assert.Error(t, setErr, "Failed to set environment variable %q", k)
+					return
+				}
 			}
 			actual, err := Parse()
 			if err != nil {

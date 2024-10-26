@@ -34,18 +34,18 @@ type response struct {
 
 // poolPayload структура тела для запроса на сервер
 type poolPayload struct {
-	Body []payload.Metrics
 	Out  chan response // Канал с данными для обратной связи
+	Body []payload.Metrics
 }
 
 // Pool пул отправщиков на сервер
 type Pool struct {
-	wg               sync.WaitGroup    // Группа ожидания для корректиного закрытия пула
-	in               chan *poolPayload // Канал для отправки в горрутины
-	isClosed         bool              // Флаг, что пул закрыт
 	client           IClient           // Клиент для подключения к серверам
 	encodeWriterPool sync.Pool         // Шифровальщики тела
+	in               chan *poolPayload // Канал для отправки в горрутины
+	wg               sync.WaitGroup    // Группа ожидания для корректиного закрытия пула
 	HashKey          string
+	isClosed         bool // Флаг, что пул закрыт
 }
 
 // newEncoder создает и возвращает новый модуль записи gzip с лучшим уровнем скорости сжатия.
