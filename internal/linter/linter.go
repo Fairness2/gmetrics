@@ -2,6 +2,7 @@ package linter
 
 import (
 	"github.com/kisielk/errcheck/errcheck"
+	"github.com/tdakkota/asciicheck"
 	"gmetrics/internal/linter/osexit"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
@@ -111,6 +112,7 @@ func Check() {
 		unusedwrite.Analyzer,
 		usesgenerics.Analyzer,
 		errcheck.Analyzer,
+		asciicheck.NewAnalyzer(),
 		osexit.Analyzer,
 	}
 

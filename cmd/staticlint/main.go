@@ -10,6 +10,7 @@
 // - QF1009 Use time.Time.Equal instead of == operator
 // - QF1011 Omit redundant type from variable declaration
 // - github.com/kisielk/errcheck/errcheck check for unchecked errors
+// - github.com/tdakkota/asciicheck checks that all code identifiers does not have non-ASCII symbols in the name
 // - noosexit Check os.Exit() is used in main function of package
 //
 // Для сборки нужно запустить go build -o staticlint
