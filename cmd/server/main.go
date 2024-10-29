@@ -8,6 +8,7 @@ import (
 	"gmetrics/cmd/server/handlers/getmetrics"
 	"gmetrics/cmd/server/handlers/handlemetric"
 	"gmetrics/cmd/server/handlers/ping"
+	"gmetrics/internal/buildflags"
 	"gmetrics/internal/contextkeys"
 	"gmetrics/internal/database"
 	"gmetrics/internal/logger"
@@ -27,6 +28,7 @@ import (
 )
 
 func main() {
+	buildflags.PrintBuildInformation()
 	go func() {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
@@ -189,7 +191,7 @@ func InitStore(ctx context.Context) {
 	// Если указан путь к файлу, то будет создано хранилище с сохранением в файл, иначе будет создано хранилище в памяти
 	if config.Params.DatabaseDSN != "" {
 		logger.Log.Info("Set database store")
-		store, err := metrics.NewDBStorage(ctx, database.DB, config.Params.Restore, config.Params.StoreInterval == 0)
+		store, err := metrics.NewDBStorage(ctx, metrics.NewDBAdapter(database.DB), config.Params.Restore, config.Params.StoreInterval == 0)
 		if err != nil {
 			logger.Log.Fatal(err)
 		}

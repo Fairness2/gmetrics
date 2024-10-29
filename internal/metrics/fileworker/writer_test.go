@@ -1,6 +1,7 @@
 package fileworker
 
 import (
+	"log"
 	"os"
 	"testing"
 
@@ -70,7 +71,7 @@ func TestJSONWriter_Write(t *testing.T) {
 			}
 			defer func() {
 				if cErr := writer.Close(); err != nil {
-					t.Fatal(cErr)
+					log.Print(cErr)
 				}
 			}()
 

@@ -17,10 +17,10 @@ var ErrorStorageDatabaseClosed = errors.New("DB storage is already closed")
 
 // SQLExecutor интерфейс с нужными функциями из sql.DB
 type SQLExecutor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+	ExecContext(ctx context.Context, query string, args ...any) (IResult, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) IRow
+	QueryContext(ctx context.Context, query string, args ...any) (IRows, error)
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (ITX, error)
 }
 
 // DBStorage хранилище метрик в базе данных
@@ -614,7 +614,8 @@ func (storage *DBStorage) FlushAndClose() error {
 	if err := storage.Flush(); err != nil {
 		return err
 	}
-	return nil
+
+	return storage.Close()
 }
 
 // IsSyncMode открыто ли хранилище в синхронном режиме
