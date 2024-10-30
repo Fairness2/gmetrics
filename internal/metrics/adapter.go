@@ -53,12 +53,19 @@ func (dba DBAdapter) BeginTx(ctx context.Context, opts *sql.TxOptions) (ITX, err
 	if err != nil {
 		return nil, err
 	}
-	return TXAdapter{real: realTX}, err
+	return TXAdapter{real: realTX}, nil
 }
 
 // QueryContext Адаптер к sql.DB.QueryContext
 func (dba DBAdapter) QueryContext(ctx context.Context, query string, args ...any) (IRows, error) {
-	return dba.real.QueryContext(ctx, query, args...)
+	res, err := dba.real.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	if rErr := res.Err(); rErr != nil {
+		return nil, rErr
+	}
+	return res, nil
 }
 
 // QueryRowContext Адаптер к sql.DB.QueryRowContext
