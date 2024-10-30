@@ -50,6 +50,9 @@ func NewDBAdapter(real *sql.DB) *DBAdapter {
 // BeginTx Адаптер к sql.DB.BeginTx
 func (dba DBAdapter) BeginTx(ctx context.Context, opts *sql.TxOptions) (ITX, error) {
 	realTX, err := dba.real.BeginTx(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
 	return TXAdapter{real: realTX}, err
 }
 
