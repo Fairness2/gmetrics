@@ -582,6 +582,7 @@ func (storage *DBStorage) Sync(ctx context.Context) error {
 			logger.Log.Debug("Sync metrics")
 			if err := storage.Flush(); err != nil {
 				logger.Log.Error(err)
+				return err
 			}
 		case <-ctx.Done():
 			logger.Log.Debug("Sync metrics before end")

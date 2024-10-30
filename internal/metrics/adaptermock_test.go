@@ -70,10 +70,10 @@ func (mr *MockITXMockRecorder) ExecContext(ctx, query interface{}, args ...inter
 }
 
 // PrepareContext mocks base method.
-func (m *MockITX) PrepareContext(ctx context.Context, query string) (*sql.Stmt, error) {
+func (m *MockITX) PrepareContext(ctx context.Context, query string) (IStmt, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PrepareContext", ctx, query)
-	ret0, _ := ret[0].(*sql.Stmt)
+	ret0, _ := ret[0].(IStmt)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -273,4 +273,60 @@ func (m *MockIResult) RowsAffected() (int64, error) {
 func (mr *MockIResultMockRecorder) RowsAffected() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RowsAffected", reflect.TypeOf((*MockIResult)(nil).RowsAffected))
+}
+
+// MockIStmt is a mock of IStmt interface.
+type MockIStmt struct {
+	ctrl     *gomock.Controller
+	recorder *MockIStmtMockRecorder
+}
+
+// MockIStmtMockRecorder is the mock recorder for MockIStmt.
+type MockIStmtMockRecorder struct {
+	mock *MockIStmt
+}
+
+// NewMockIStmt creates a new mock instance.
+func NewMockIStmt(ctrl *gomock.Controller) *MockIStmt {
+	mock := &MockIStmt{ctrl: ctrl}
+	mock.recorder = &MockIStmtMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIStmt) EXPECT() *MockIStmtMockRecorder {
+	return m.recorder
+}
+
+// Close mocks base method.
+func (m *MockIStmt) Close() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close.
+func (mr *MockIStmtMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockIStmt)(nil).Close))
+}
+
+// Exec mocks base method.
+func (m *MockIStmt) Exec(args ...any) (sql.Result, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{}
+	for _, a := range args {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Exec", varargs...)
+	ret0, _ := ret[0].(sql.Result)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Exec indicates an expected call of Exec.
+func (mr *MockIStmtMockRecorder) Exec(args ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exec", reflect.TypeOf((*MockIStmt)(nil).Exec), args...)
 }
