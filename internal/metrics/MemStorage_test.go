@@ -231,8 +231,12 @@ func BenchmarkMemStorage_SetMetrics(b *testing.B) {
 			store := NewMemStorage()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				store.SetGauges(bm.gauges)
-				store.AddCounters(bm.counters)
+				if err := store.SetGauges(bm.gauges); err != nil {
+					b.Error(err, "error setting gauges")
+				}
+				if err := store.AddCounters(bm.counters); err != nil {
+					b.Error(err, "error add counters")
+				}
 			}
 		})
 	}
@@ -251,4 +255,142 @@ func generateCounterMap(size int) map[string]Counter {
 		gauges[fmt.Sprintf("metric%d", i+1)] = Counter(rand.Int())
 	}
 	return gauges
+}
+
+func TestMemStorage_AddCounters(t *testing.T) {
+	store := NewMemStorage()
+	testCases := []struct {
+		name        string
+		counters    map[string]Counter
+		wantErr     bool
+		wantCounter map[string]Counter
+	}{
+		{
+			name: "add_new_counters",
+			counters: map[string]Counter{
+				"counter1": 1,
+				"counter2": 2,
+			},
+			wantErr: false,
+			wantCounter: map[string]Counter{
+				"counter1": 1,
+				"counter2": 2,
+			},
+		},
+		{
+			name: "add_existing_counters",
+			counters: map[string]Counter{
+				"counter1": 3,
+				"counter2": 4,
+			},
+			wantErr: false,
+			wantCounter: map[string]Counter{
+				"counter1": 4,
+				"counter2": 6,
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := store.AddCounters(tc.counters)
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				for k, v := range tc.wantCounter {
+					assert.Equal(t, v, store.Counter[k])
+				}
+			}
+		})
+	}
+}
+
+func TestMemStorage_SetGauges(t *testing.T) {
+	store := NewMemStorage()
+	testCases := []struct {
+		name       string
+		gauges     map[string]Gauge
+		wantErr    bool
+		wantGauges map[string]Gauge
+	}{
+		{
+			name: "set_new_gauges",
+			gauges: map[string]Gauge{
+				"gauge1": 1,
+				"gauge2": 2,
+			},
+			wantErr: false,
+			wantGauges: map[string]Gauge{
+				"gauge1": 1,
+				"gauge2": 2,
+			},
+		},
+		{
+			name: "set_existing_counters",
+			gauges: map[string]Gauge{
+				"gauge1": 3,
+				"gauge2": 4,
+			},
+			wantErr: false,
+			wantGauges: map[string]Gauge{
+				"gauge1": 3,
+				"gauge2": 4,
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := store.SetGauges(tc.gauges)
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				for k, v := range tc.gauges {
+					assert.Equal(t, v, store.Gauge[k])
+				}
+			}
+		})
+	}
+}
+
+func TestMemStorage_GetGauges(t *testing.T) {
+	store := NewMemStorage()
+	err := store.SetGauges(map[string]Gauge{
+		"gauge1": 0.42,
+		"gauge2": 0.84,
+	})
+	assert.NoError(t, err, "error setting gauges")
+
+	gauges, err := store.GetGauges()
+	assert.NoError(t, err, "error getting gauges")
+	assert.Len(t, gauges, 2, "expected 2 gauges, got %d", len(gauges))
+
+	g1, ok := gauges["gauge1"]
+	assert.True(t, ok, "expected gauge1 to be set")
+	assert.Equal(t, g1, Gauge(0.42), "expected gauge1 = 0.42, got %v", g1)
+
+	g2, ok := gauges["gauge2"]
+	assert.True(t, ok, "expected gauge1 to be set")
+	assert.Equal(t, g2, Gauge(0.84), "expected gauge1 = 0.84, got %v", g1)
+}
+
+func TestMemStorage_GetCounters(t *testing.T) {
+	store := NewMemStorage()
+	err := store.AddCounters(map[string]Counter{
+		"counter1": 42,
+		"counter2": 84,
+	})
+	assert.NoError(t, err, "error setting counters")
+
+	counters, err := store.GetCounters()
+	assert.NoError(t, err, "error getting counters")
+	assert.Len(t, counters, 2, "expected 2 counters, got %d", len(counters))
+
+	c1, ok := counters["counter1"]
+	assert.True(t, ok, "expected counter1 to be set")
+	assert.Equal(t, c1, Counter(42), "expected counter1 = 42, got %v", c1)
+
+	c2, ok := counters["counter2"]
+	assert.True(t, ok, "expected counter2 to be set")
+	assert.Equal(t, c2, Counter(84), "expected counter2 = 84, got %v", c1)
 }

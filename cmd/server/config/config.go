@@ -26,14 +26,14 @@ const (
 // CliConfig конфигурация сервера из командной строки
 type CliConfig struct {
 	// Address адрес сервера
-	Address       string `env:"ADDRESS"`
-	LogLevel      string `env:"LOG_LEVEL"`      // Уровень логирования
-	FileStorage   string `env:"FILE_STORAGE"`   // Путь к хранению файлов, если не указан, то будет создано обычное хранилище в памяти
-	Restore       bool   `env:"RESTORE"`        // Надобность загрузки старых данных из файла при включении
-	StoreInterval int64  `env:"STORE_INTERVAL"` // период сохранения метрик в файл; 0 - синхронный режим
-	DatabaseDSN   string `env:"DATABASE_DSN"`   // подключение к базе данных
+	Address     string `env:"ADDRESS"`
+	LogLevel    string `env:"LOG_LEVEL"`    // Уровень логирования
+	FileStorage string `env:"FILE_STORAGE"` // Путь к хранению файлов, если не указан, то будет создано обычное хранилище в памяти
+	DatabaseDSN string `env:"DATABASE_DSN"` // подключение к базе данных
 	// HashKey Ключ для шифрования
-	HashKey string `env:"KEY"`
+	HashKey       string `env:"KEY"`
+	StoreInterval int64  `env:"STORE_INTERVAL"` // период сохранения метрик в файл; 0 - синхронный режим
+	Restore       bool   `env:"RESTORE"`        // Надобность загрузки старых данных из файла при включении
 }
 
 // Params конфигурация приложения

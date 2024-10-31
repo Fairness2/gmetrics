@@ -36,10 +36,10 @@ func (m *MockSQLExecutor) EXPECT() *MockSQLExecutorMockRecorder {
 }
 
 // BeginTx mocks base method.
-func (m *MockSQLExecutor) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
+func (m *MockSQLExecutor) BeginTx(ctx context.Context, opts *sql.TxOptions) (ITX, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BeginTx", ctx, opts)
-	ret0, _ := ret[0].(*sql.Tx)
+	ret0, _ := ret[0].(ITX)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -51,14 +51,14 @@ func (mr *MockSQLExecutorMockRecorder) BeginTx(ctx, opts interface{}) *gomock.Ca
 }
 
 // ExecContext mocks base method.
-func (m *MockSQLExecutor) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+func (m *MockSQLExecutor) ExecContext(ctx context.Context, query string, args ...any) (IResult, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, query}
 	for _, a := range args {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "ExecContext", varargs...)
-	ret0, _ := ret[0].(sql.Result)
+	ret0, _ := ret[0].(IResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -71,14 +71,14 @@ func (mr *MockSQLExecutorMockRecorder) ExecContext(ctx, query interface{}, args 
 }
 
 // QueryContext mocks base method.
-func (m *MockSQLExecutor) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+func (m *MockSQLExecutor) QueryContext(ctx context.Context, query string, args ...any) (IRows, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, query}
 	for _, a := range args {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "QueryContext", varargs...)
-	ret0, _ := ret[0].(*sql.Rows)
+	ret0, _ := ret[0].(IRows)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -91,14 +91,14 @@ func (mr *MockSQLExecutorMockRecorder) QueryContext(ctx, query interface{}, args
 }
 
 // QueryRowContext mocks base method.
-func (m *MockSQLExecutor) QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
+func (m *MockSQLExecutor) QueryRowContext(ctx context.Context, query string, args ...any) IRow {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, query}
 	for _, a := range args {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "QueryRowContext", varargs...)
-	ret0, _ := ret[0].(*sql.Row)
+	ret0, _ := ret[0].(IRow)
 	return ret0
 }
 

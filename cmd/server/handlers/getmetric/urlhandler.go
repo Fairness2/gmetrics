@@ -2,6 +2,7 @@ package getmetric
 
 import (
 	"fmt"
+	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
 	"net/http"
 
@@ -38,14 +39,18 @@ func URLHandler(response http.ResponseWriter, request *http.Request) {
 			http.NotFound(response, request)
 			return
 		}
-		fmt.Fprint(response, value.ToString())
+		if _, fErr := fmt.Fprint(response, value.ToString()); fErr != nil {
+			logger.Log.Error(fErr)
+		}
 	case metrics.TypeCounter:
 		value, ok := metrics.MeStore.GetCounter(metricName)
 		if !ok {
 			http.NotFound(response, request)
 			return
 		}
-		fmt.Fprint(response, value.ToString())
+		if _, fErr := fmt.Fprint(response, value.ToString()); fErr != nil {
+			logger.Log.Error(fErr)
+		}
 	default:
 		http.NotFound(response, request)
 		return

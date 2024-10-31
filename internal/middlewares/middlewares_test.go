@@ -173,7 +173,9 @@ func TestGZIPDecompressRequest(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				writer.Write(rawBody)
+				if _, err = writer.Write(rawBody); err != nil {
+					t.Fatal(err)
+				}
 				writer.WriteHeader(http.StatusOK)
 			})
 			// запускаем тестовый сервер, будет выбран первый свободный порт
@@ -223,7 +225,9 @@ func TestGZIPCompressResponse(t *testing.T) {
 			router := chi.NewRouter()
 			router.Use(GZIPCompressResponse)
 			router.Post("/", func(writer http.ResponseWriter, request *http.Request) {
-				writer.Write([]byte(tc.body))
+				if _, wErr := writer.Write([]byte(tc.body)); wErr != nil {
+					t.Fatal(wErr)
+				}
 				writer.WriteHeader(http.StatusOK)
 			})
 			// запускаем тестовый сервер, будет выбран первый свободный порт

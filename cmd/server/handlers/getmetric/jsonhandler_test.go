@@ -44,14 +44,14 @@ func TestJSONHandler(t *testing.T) {
 			body:            `{"id":"someName","type":"gauge"}`,
 			wantStatus:      http.StatusOK,
 			wantContentType: "application/json",
-			wantValue:       `{"id":"someName","type":"gauge","value":56.67}`,
+			wantValue:       `{"value":56.67,"id":"someName","type":"gauge"}`,
 		},
 		{
 			name:            "not_empty_count",
 			body:            `{"id":"someName","type":"counter"}`,
 			wantStatus:      http.StatusOK,
 			wantContentType: "application/json",
-			wantValue:       `{"id":"someName","type":"counter","delta":5}`,
+			wantValue:       `{"delta":5,"id":"someName","type":"counter"}`,
 		},
 		{
 			name:            "empty_gauge",

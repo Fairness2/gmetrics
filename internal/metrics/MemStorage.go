@@ -71,14 +71,22 @@ func NewMemStorage() *MemStorage {
 func (storage *MemStorage) GetGauges() (map[string]Gauge, error) {
 	storage.mutex.RLock()
 	defer storage.mutex.RUnlock()
-	return storage.Gauge, nil
+	newMap := make(map[string]Gauge, len(storage.Gauge))
+	for k, v := range storage.Gauge {
+		newMap[k] = v
+	}
+	return newMap, nil
 }
 
 // GetCounters получение всех counter
 func (storage *MemStorage) GetCounters() (map[string]Counter, error) {
 	storage.mutex.RLock()
 	defer storage.mutex.RUnlock()
-	return storage.Counter, nil
+	newMap := make(map[string]Counter, len(storage.Counter))
+	for k, v := range storage.Counter {
+		newMap[k] = v
+	}
+	return newMap, nil
 }
 
 // SetGauges массовое обновление гауге в памяти

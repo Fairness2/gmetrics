@@ -11,6 +11,11 @@ const (
 	TypeCounter = "counter"
 )
 
+var (
+	ErrorScanGauge   = errors.New("cannot scan value. cannot convert value to float64")
+	ErrorScanCounter = errors.New("cannot scan value. cannot convert value to int64")
+)
+
 // Gauge Тип метрики gauge
 type Gauge float64
 
@@ -35,7 +40,7 @@ func (g *Gauge) Scan(value any) error {
 
 	v, ok := value.(float64)
 	if !ok {
-		return errors.New("cannot scan value. cannot convert value to float64")
+		return ErrorScanGauge
 	}
 	*g = Gauge(v)
 
@@ -75,7 +80,7 @@ func (c *Counter) Scan(value interface{}) error {
 
 	v, ok := value.(int64)
 	if !ok {
-		return errors.New("cannot scan value. cannot convert value to int64")
+		return ErrorScanCounter
 	}
 	*c = Counter(v)
 

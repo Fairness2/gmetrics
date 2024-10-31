@@ -6,6 +6,7 @@ import (
 	"gmetrics/cmd/agent/collector/sender"
 	"gmetrics/cmd/agent/config"
 	"gmetrics/cmd/agent/sendpool"
+	"gmetrics/internal/buildflags"
 	"gmetrics/internal/logger"
 	"log"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 )
 
 func main() {
+	buildflags.PrintBuildInformation()
 	log.Println("Agent is starting")
 	go func() {
 		log.Println(http.ListenAndServe("localhost:6061", nil))

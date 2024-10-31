@@ -76,7 +76,9 @@ func TestRestClient_Post(t *testing.T) {
 					assert.Equal(t, header.Value, request.Header.Get(header.Name))
 				}
 				writer.WriteHeader(http.StatusOK)
-				writer.Write([]byte{})
+				if _, wErr := writer.Write([]byte{}); wErr != nil {
+					t.Errorf("error writing response: %v", wErr)
+				}
 			})
 			// запускаем тестовый сервер, будет выбран первый свободный порт
 			srv := httptest.NewServer(router)
