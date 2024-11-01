@@ -89,7 +89,7 @@ func (storage *DBStorage) syncGauge(name string, value Gauge) (err error) {
 			break
 		}
 		logger.Log.Error(err)
-		if !errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code) {
+		if !(errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code)) {
 			break
 		}
 
@@ -132,7 +132,7 @@ func (storage *DBStorage) syncCounter(name string, value Counter) (err error) {
 			break
 		}
 		logger.Log.Error(err)
-		if !errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code) {
+		if !(errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code)) {
 			break
 		}
 
@@ -170,7 +170,7 @@ func (storage *DBStorage) GetGauge(name string) (g Gauge, ok bool) {
 			break
 		}
 		logger.Log.Error(err)
-		if !errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code) {
+		if !(errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code)) {
 			ok = false
 			break
 		}
