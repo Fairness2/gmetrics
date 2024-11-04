@@ -8,6 +8,9 @@ type Retriable struct {
 
 // Error возвращает сообщение об исходной ошибке.
 func (r *Retriable) Error() string {
+	if r.original == nil {
+		return "retriable error"
+	}
 	return r.original.Error()
 }
 

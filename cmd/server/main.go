@@ -211,7 +211,11 @@ func InitStore(ctx context.Context) {
 
 // InitLogger инициализируем логер
 func InitLogger() (*zap.SugaredLogger, error) {
-	lgr, err := logger.New(config.Params.LogLevel)
+	loggerLevel, err := logger.ParseLevel(config.Params.LogLevel)
+	if err != nil {
+		return nil, err
+	}
+	lgr, err := logger.New(loggerLevel)
 	if err != nil {
 		return nil, err
 	}

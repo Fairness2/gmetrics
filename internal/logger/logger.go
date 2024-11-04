@@ -24,16 +24,11 @@ type ILogger interface {
 var Log ILogger = zap.NewNop().Sugar()
 
 // New creates a new logger with the specified log level.
-func New(level string) (*zap.SugaredLogger, error) {
-	// преобразуем текстовый уровень логирования в zap.AtomicLevel
-	lvl, err := zap.ParseAtomicLevel(level)
-	if err != nil {
-		return nil, err
-	}
+func New(level zap.AtomicLevel) (*zap.SugaredLogger, error) {
 	// создаём новую конфигурацию логера
 	cnf := zap.NewProductionConfig()
 	// устанавливаем уровень
-	cnf.Level = lvl
+	cnf.Level = level
 	// устанавливаем отображение
 	cnf.Encoding = "console"
 	// Устанавливаем удобочитаемый формат времени
@@ -45,4 +40,9 @@ func New(level string) (*zap.SugaredLogger, error) {
 	}
 	// Создаём обогащённый логер и возвращаем
 	return logger.Sugar(), nil
+}
+
+// ParseLevel преобразуем текстовый уровень логирования в zap.AtomicLevel
+func ParseLevel(level string) (zap.AtomicLevel, error) {
+	return zap.ParseAtomicLevel(level)
 }
