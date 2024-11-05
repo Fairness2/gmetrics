@@ -62,7 +62,10 @@ func main() {
 	}() // Запускаем сборку данных использования системы
 
 	// Создаём пул отправок на сервер
-	sendPool := sendpool.New(ctx, config.Params.RateLimit, config.Params.HashKey, config.Params.ServerURL)
+	sendPool, poolErr := sendpool.New(ctx, config.Params.RateLimit, config.Params.HashKey, config.Params.ServerURL)
+	if poolErr != nil {
+		log.Fatal(poolErr)
+	}
 
 	// Запускаем отправку данных
 	client := sender.New(collection.Collection, sendPool)

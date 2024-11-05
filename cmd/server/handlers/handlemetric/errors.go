@@ -23,10 +23,6 @@ func (e *UpdateMetricError) Unwrap() error {
 	return nil
 }
 
-/*func (er UpdateMetricError) Error() string {
-	return er.Message
-}*/
-
 // NotValidGaugeError возвращается, когда значение метрики невозможно преобразовать в допустимый тип Gauge
 var NotValidGaugeError = &UpdateMetricError{
 	error:      errors.New("metric value is not a valid float"),

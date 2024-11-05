@@ -22,6 +22,15 @@ var ErrorPoolIsClosed = errors.New("pool is closed")
 // ErrorEmptyHashKey указывает, что хэш-ключ пуст при попытке хэширования тела.
 var ErrorEmptyHashKey = errors.New("hash key is empty")
 
+// ErrorWrongWorkerSize указывает, что количество воркеров в пуле подобрано не верно, возможно меньше нуля
+var ErrorWrongWorkerSize = errors.New("wrong worker size")
+
+// ErrorEmptyClient Пул передан пустой http клиент
+var ErrorEmptyClient = errors.New("empty client")
+
+// ErrorServerURLIsEmpty Переданные адрес сервера пустой
+var ErrorServerURLIsEmpty = errors.New("server url is empty")
+
 type IClient interface {
 	Post(url string, body []byte, headers ...Header) (*resty.Response, error)
 }
@@ -60,12 +69,24 @@ func newEncoder() interface{} {
 
 // New Создание нового пула отправщиков.
 // Закрывается по завершению контекста
-func New(ctx context.Context, size int, HashKey, ServerURL string) *Pool {
+func New(ctx context.Context, size int, HashKey, ServerURL string) (*Pool, error) {
+	if ServerURL == "" {
+		return nil, ErrorServerURLIsEmpty
+	}
 	return NewWithClient(ctx, size, HashKey, NewRestClient(ServerURL))
 }
 
 // NewWithClient инициализирует новый пул с заданным размером, хеш-ключом и rest-клиентом и запускает рабочие горутины.
-func NewWithClient(ctx context.Context, size int, HashKey string, client IClient) *Pool {
+func NewWithClient(ctx context.Context, size int, HashKey string, client IClient) (*Pool, error) {
+	if size <= 0 {
+		return nil, ErrorWrongWorkerSize
+	}
+	if HashKey == "" {
+		return nil, ErrorEmptyHashKey
+	}
+	if client == nil {
+		return nil, ErrorEmptyClient
+	}
 	in := make(chan *poolPayload, size)
 	pool := &Pool{
 		wg:     sync.WaitGroup{},
@@ -89,7 +110,7 @@ func NewWithClient(ctx context.Context, size int, HashKey string, client IClient
 		close(pool.in)
 	}()
 
-	return pool
+	return pool, nil
 }
 
 // Send отправка метрик на сервер
