@@ -132,7 +132,7 @@ func TestSendMetric(t *testing.T) {
 			defer cancelFunc()
 
 			// Создаём пул отправок на сервер
-			sendPool, poolErr := sendpool.New(ctx, 1, "1", mockServer.URL)
+			sendPool, poolErr := sendpool.New(ctx, 1, "1", mockServer.URL, nil)
 			if poolErr != nil {
 				assert.NoError(t, poolErr)
 				return

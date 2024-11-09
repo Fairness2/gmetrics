@@ -173,6 +173,7 @@ func getRouter() chi.Router {
 		r.Use(middlewares.JSONHeaders)
 
 		router.Group(func(r chi.Router) {
+
 			// Устанавилваем мидлваре
 			r.Use(middlewares.CheckSign) // Проверка подписи тела
 			// Сохранение метрики с помощью JSON тела

@@ -52,7 +52,7 @@ func TestNewWithClient(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.TODO())
 			defer cancel()
 
-			got, err := NewWithClient(ctx, tt.size, tt.hashKey, tt.client)
+			got, err := NewWithClient(ctx, tt.size, tt.hashKey, tt.client, nil)
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)
 				return
@@ -108,7 +108,7 @@ func TestNew(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.TODO())
 			defer cancel()
 
-			got, err := New(ctx, tt.size, tt.hashKey, tt.serverURL)
+			got, err := New(ctx, tt.size, tt.hashKey, tt.serverURL, nil)
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)
 				return

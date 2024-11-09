@@ -1,5 +1,7 @@
 package config
 
+import "crypto/rsa"
+
 const (
 	// DefaultPollInterval Интервал между сборкой данных по умолчанию
 	DefaultPollInterval int64 = 2
@@ -34,6 +36,10 @@ type CliConfig struct {
 	ReportInterval int64 `env:"REPORT_INTERVAL"`
 	// RateLimit количество одновременно исходящих запросов на сервер
 	RateLimit int `env:"RATE_LIMIT"`
+	// CryptoKeyPath Путь к файлу с публичным ключом
+	CryptoKeyPath string `env:"CRYPTO_KEY"`
+	// CryptoKey Публичный ключ для шифрования тела запроса
+	CryptoKey *rsa.PublicKey
 }
 
 // Params конфигурация приложения

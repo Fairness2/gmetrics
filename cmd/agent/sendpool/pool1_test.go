@@ -19,7 +19,7 @@ func Benchmark(b *testing.B) {
 	restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, nil).
 		AnyTimes()
-	p, err := NewWithClient(context.TODO(), 2, "aboba", restClient)
+	p, err := NewWithClient(context.TODO(), 2, "aboba", restClient, nil)
 	if err != nil {
 		assert.NoError(b, err)
 		return
@@ -127,28 +127,24 @@ func TestPoolHashBody(t *testing.T) {
 // TestPoolGetBody tests the method compressBody of the Pool struct.
 func TestPoolGetBody(t *testing.T) {
 	tests := []struct {
-		name      string
-		body      []byte
-		wantErr   bool
-		comressed bool
+		name    string
+		body    []byte
+		wantErr bool
 	}{
 		{
-			name:      "normal_case",
-			body:      []byte("test"),
-			wantErr:   false,
-			comressed: true,
+			name:    "normal_case",
+			body:    []byte("test"),
+			wantErr: false,
 		},
 		{
-			name:      "empty_body",
-			body:      []byte(""),
-			wantErr:   false,
-			comressed: true,
+			name:    "empty_body",
+			body:    []byte(""),
+			wantErr: false,
 		},
 		{
-			name:      "nil_body",
-			body:      nil,
-			wantErr:   false,
-			comressed: true,
+			name:    "nil_body",
+			body:    nil,
+			wantErr: false,
 		},
 	}
 	for _, tc := range tests {
@@ -158,12 +154,9 @@ func TestPoolGetBody(t *testing.T) {
 					New: newEncoder,
 				},
 			}
-			_, comressed, err := p.getBody(tc.body)
+			_, err := p.getBody(tc.body)
 			if (err != nil) != tc.wantErr {
 				t.Errorf("Pool.getBody() error = %v, wantErr %v", err, tc.wantErr)
-			}
-			if comressed != tc.comressed {
-				t.Errorf("Pool.getBody() comressed = %v, want %v", comressed, tc.comressed)
 			}
 		})
 	}

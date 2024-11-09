@@ -1,8 +1,10 @@
 package config
 
 import (
+	"crypto/rsa"
 	"errors"
 	"flag"
+	incnf "gmetrics/internal/config"
 	"strings"
 
 	"github.com/caarlos0/env/v6"
@@ -22,6 +24,15 @@ func Parse() (*CliConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	key, err := incnf.ParseKeyFromFile[rsa.PublicKey](cnf.CryptoKeyPath, "RSA PUBLIC KEY")
+	if err != nil && !errors.Is(err, incnf.ErrorEmptyPublicKeyPath) {
+		return nil, err
+	}
+	if key != nil {
+		cnf.CryptoKey = key
+	}
+
 	return cnf, nil
 }
 

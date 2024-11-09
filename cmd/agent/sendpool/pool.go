@@ -5,6 +5,8 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -31,6 +33,12 @@ var ErrorEmptyClient = errors.New("empty client")
 // ErrorServerURLIsEmpty Переданные адрес сервера пустой
 var ErrorServerURLIsEmpty = errors.New("server url is empty")
 
+// ErrorCantCompressBody Ошибка, что мы не смогли сжать тело
+var ErrorCantCompressBody = errors.New("cant compress body")
+
+// ErrorCantEcryptBody Ошибка, что мы не смогли зашифровать тело
+var ErrorCantEcryptBody = errors.New("cant encrypt body")
+
 type IClient interface {
 	Post(url string, body []byte, headers ...Header) (*resty.Response, error)
 }
@@ -47,6 +55,8 @@ type poolPayload struct {
 	Body []payload.Metrics
 }
 
+type bodyPipe func(body []byte) ([]byte, error)
+
 // Pool пул отправщиков на сервер
 type Pool struct {
 	client           IClient           // Клиент для подключения к серверам
@@ -54,7 +64,8 @@ type Pool struct {
 	in               chan *poolPayload // Канал для отправки в горрутины
 	wg               sync.WaitGroup    // Группа ожидания для корректиного закрытия пула
 	HashKey          string
-	isClosed         bool // Флаг, что пул закрыт
+	isClosed         bool           // Флаг, что пул закрыт
+	publicKey        *rsa.PublicKey // Ключ для шифрования тела запроса к серверу
 }
 
 // newEncoder создает и возвращает новый модуль записи gzip с лучшим уровнем скорости сжатия.
@@ -69,15 +80,15 @@ func newEncoder() interface{} {
 
 // New Создание нового пула отправщиков.
 // Закрывается по завершению контекста
-func New(ctx context.Context, size int, HashKey, ServerURL string) (*Pool, error) {
+func New(ctx context.Context, size int, HashKey, ServerURL string, publicKey *rsa.PublicKey) (*Pool, error) {
 	if ServerURL == "" {
 		return nil, ErrorServerURLIsEmpty
 	}
-	return NewWithClient(ctx, size, HashKey, NewRestClient(ServerURL))
+	return NewWithClient(ctx, size, HashKey, NewRestClient(ServerURL), publicKey)
 }
 
 // NewWithClient инициализирует новый пул с заданным размером, хеш-ключом и rest-клиентом и запускает рабочие горутины.
-func NewWithClient(ctx context.Context, size int, HashKey string, client IClient) (*Pool, error) {
+func NewWithClient(ctx context.Context, size int, HashKey string, client IClient, publicKey *rsa.PublicKey) (*Pool, error) {
 	if size <= 0 {
 		return nil, ErrorWrongWorkerSize
 	}
@@ -95,7 +106,8 @@ func NewWithClient(ctx context.Context, size int, HashKey string, client IClient
 		encodeWriterPool: sync.Pool{
 			New: newEncoder,
 		},
-		HashKey: HashKey,
+		HashKey:   HashKey,
+		publicKey: publicKey,
 	}
 	for i := 0; i < size; i++ {
 		pool.wg.Add(1)
@@ -166,15 +178,21 @@ func (p *Pool) sendToServer(body []payload.Metrics) (*resty.Response, error) {
 		return nil, err
 	}
 
-	// Сжимаем тело
-	compressedBody, comressed, err := p.getBody(marshaledBody)
-	if err != nil {
+	// Шифруем тело и Сжимаем тело
+	compressedBody, err := p.bodyPipeline(marshaledBody, p.encryptBody, p.getBody)
+	if err != nil && !errors.Is(err, ErrorCantCompressBody) {
 		return nil, err
 	}
-	if comressed {
+	if !errors.Is(err, ErrorCantCompressBody) {
 		headers = append(headers, Header{
 			Name:  "Content-Encoding",
 			Value: "gzip",
+		})
+	}
+	if !errors.Is(err, ErrorCantEcryptBody) {
+		headers = append(headers, Header{
+			Name:  "X-Body-Encrypted",
+			Value: "1",
 		})
 	}
 
@@ -208,16 +226,16 @@ func (p *Pool) marshalBody(body []payload.Metrics) ([]byte, error) {
 // Функция также возвращает любую ошибку, возникшую во время упаковывания или сжатия.
 // Возвращаемый [] byte содержит тело, логическое значение указывает,
 // было ли сжатие успешным, а ошибка содержит любые обнаруженные ошибки.
-func (p *Pool) getBody(body []byte) ([]byte, bool, error) {
+func (p *Pool) getBody(body []byte) ([]byte, error) {
 	// Пробуем сжать тело
 	compressedBody, err := p.compressBody(body)
 	if err != nil {
 		// Если не получилось, то ставим обычное боди
 		logger.Log.Error("Cant compress body", err)
-		return body, false, nil
+		return body, errors.Join(err, ErrorCantCompressBody)
 	} else {
 		// Если получилось, то ставим заголовок о методе кодировки и ставим закодированное тело
-		return compressedBody, true, err
+		return compressedBody, nil
 	}
 }
 
@@ -255,4 +273,40 @@ func (p *Pool) compressBody(body []byte) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+// encryptBody шифрует данное тело, используя шифрование RSA с открытым ключом из структуры пула.
+// Возвращает зашифрованное тело или ошибку, если шифрование не удалось.
+func (p *Pool) encryptBody(body []byte) ([]byte, error) {
+	if p.publicKey == nil {
+		return body, ErrorCantEcryptBody
+	}
+	/*
+		newBody, err := rsa.EncryptPKCS1v15(rand.Reader, p.publicKey, body)
+		if err != nil {
+			return nil, err
+		}
+		return newBody, nil
+	*/
+	label := []byte("")
+	hash := sha256.New()
+	newBody, err := rsa.EncryptOAEP(hash, rand.Reader, p.publicKey, body, label)
+	if err != nil {
+		return body, errors.Join(err, ErrorCantEcryptBody)
+
+	}
+	return newBody, nil
+}
+
+// bodyPipeline обрабатывает данное тело с помощью ряда функций, представленных в вариативном аргументе процесса.
+func (p *Pool) bodyPipeline(body []byte, processes ...bodyPipe) ([]byte, error) {
+	var err error
+	for _, process := range processes {
+		var pErr error
+		body, pErr = process(body)
+		if pErr != nil {
+			err = errors.Join(err, pErr)
+		}
+	}
+	return body, err
 }
