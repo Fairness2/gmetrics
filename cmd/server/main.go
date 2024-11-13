@@ -11,6 +11,7 @@ import (
 	"gmetrics/internal/buildflags"
 	"gmetrics/internal/contextkeys"
 	"gmetrics/internal/database"
+	"gmetrics/internal/encrypt"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/middlewares"
@@ -151,12 +152,15 @@ func stopServer(server *http.Server, ctx context.Context) error {
 // getRouter конфигурация роутинга приложение
 func getRouter() chi.Router {
 	router := chi.NewRouter()
+	decrypter := encrypt.NewDecrypter(config.Params.CryptoKey)
 	// Устанавилваем мидлваре
 	router.Use(
-		cMiddleware.StripSlashes,          // Убираем лишние слеши
-		logger.LogRequests,                // Логируем данные запроса
-		middlewares.GZIPCompressResponse,  // Сжимаем ответ TODO исключить для роутов, которые будут возвращать не application/json или text/html. Проверять в мидлваре или компрессоре может быть не эффективно,так как заголовок с контентом может быть поставлен позже записи контента
+		cMiddleware.StripSlashes,         // Убираем лишние слеши
+		logger.LogRequests,               // Логируем данные запроса
+		middlewares.GZIPCompressResponse, // Сжимаем ответ TODO исключить для роутов, которые будут возвращать не application/json или text/html. Проверять в мидлваре или компрессоре может быть не эффективно,так как заголовок с контентом может быть поставлен позже записи контента
+		middlewares.CheckSign,
 		middlewares.GZIPDecompressRequest, // Разжимаем тело ответа
+		decrypter.Middleware,
 	)
 	// Сохранение метрики по URL
 	router.Post("/update/{type}/{name}/{value}", handlemetric.URLHandler)
@@ -173,9 +177,6 @@ func getRouter() chi.Router {
 		r.Use(middlewares.JSONHeaders)
 
 		router.Group(func(r chi.Router) {
-
-			// Устанавилваем мидлваре
-			r.Use(middlewares.CheckSign) // Проверка подписи тела
 			// Сохранение метрики с помощью JSON тела
 			r.Post("/update", handlemetric.JSONHandler)
 			// Сохранение метрик с помощью JSON тела

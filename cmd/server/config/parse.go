@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"flag"
+	incnf "gmetrics/internal/config"
 	"os"
 
 	"github.com/caarlos0/env/v6"
@@ -22,6 +23,15 @@ func Parse() (*CliConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	key, err := incnf.ParsePrivateKeyFromFile(cnf.CryptoKeyPath)
+	if err != nil && !errors.Is(err, incnf.ErrorEmptyPublicKeyPath) {
+		return nil, err
+	}
+	if key != nil {
+		cnf.CryptoKey = key
+	}
+
 	return cnf, nil
 }
 
@@ -54,6 +64,9 @@ func parseFromEnv(params *CliConfig) error {
 	if cnf.HashKey != "" {
 		params.HashKey = cnf.HashKey
 	}
+	if cnf.CryptoKeyPath != "" {
+		params.CryptoKeyPath = cnf.CryptoKeyPath
+	}
 	return nil
 }
 
@@ -67,6 +80,7 @@ func parseFromCli(cnf *CliConfig) (parseError error) {
 	flag.Int64Var(&cnf.StoreInterval, "i", DefaultStoreInterval, "frequency of save metrics. 0 is sync mode")
 	flag.BoolVar(&cnf.Restore, "r", DefaultRestore, "need to restore")
 	flag.StringVar(&cnf.HashKey, "k", DefaultHashKey, "encrypted key")
+	flag.StringVar(&cnf.CryptoKeyPath, "crypto-key", "", "crypto key")
 
 	// Парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse() // Сейчас будет выход из приложения, поэтому код ниже не будет исполнен, но может пригодиться в будущем, если поменять флаг выхода или будет несколько сетов

@@ -1,5 +1,7 @@
 package config
 
+import "crypto/rsa"
+
 const (
 	// DefaultServerURL Url сервера получателя метрик по умолчанию
 	DefaultServerURL = "localhost:8080"
@@ -34,6 +36,10 @@ type CliConfig struct {
 	HashKey       string `env:"KEY"`
 	StoreInterval int64  `env:"STORE_INTERVAL"` // период сохранения метрик в файл; 0 - синхронный режим
 	Restore       bool   `env:"RESTORE"`        // Надобность загрузки старых данных из файла при включении
+	// CryptoKeyPath Путь к файлу с приватным ключом
+	CryptoKeyPath string `env:"CRYPTO_KEY"`
+	// CryptoKey Приватный ключ для дешифрования тела запроса
+	CryptoKey *rsa.PrivateKey
 }
 
 // Params конфигурация приложения

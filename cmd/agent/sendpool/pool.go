@@ -5,12 +5,12 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/hmac"
-	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"gmetrics/internal/encrypt"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/payload"
 	"sync"
@@ -180,7 +180,7 @@ func (p *Pool) sendToServer(body []payload.Metrics) (*resty.Response, error) {
 
 	// Шифруем тело и Сжимаем тело
 	compressedBody, err := p.bodyPipeline(marshaledBody, p.encryptBody, p.getBody)
-	if err != nil && !errors.Is(err, ErrorCantCompressBody) {
+	if err != nil && !errors.Is(err, ErrorCantCompressBody) && !errors.Is(err, ErrorCantEcryptBody) {
 		return nil, err
 	}
 	if !errors.Is(err, ErrorCantCompressBody) {
@@ -197,7 +197,7 @@ func (p *Pool) sendToServer(body []payload.Metrics) (*resty.Response, error) {
 	}
 
 	// Устанавливаем подпись тела
-	bodyHash, hashErr := p.hashBody(marshaledBody)
+	bodyHash, hashErr := p.hashBody(compressedBody)
 	if hashErr != nil {
 		logger.Log.Error("Cant hash body", err)
 	} else {
@@ -278,22 +278,9 @@ func (p *Pool) compressBody(body []byte) ([]byte, error) {
 // encryptBody шифрует данное тело, используя шифрование RSA с открытым ключом из структуры пула.
 // Возвращает зашифрованное тело или ошибку, если шифрование не удалось.
 func (p *Pool) encryptBody(body []byte) ([]byte, error) {
-	if p.publicKey == nil {
-		return body, ErrorCantEcryptBody
-	}
-	/*
-		newBody, err := rsa.EncryptPKCS1v15(rand.Reader, p.publicKey, body)
-		if err != nil {
-			return nil, err
-		}
-		return newBody, nil
-	*/
-	label := []byte("")
-	hash := sha256.New()
-	newBody, err := rsa.EncryptOAEP(hash, rand.Reader, p.publicKey, body, label)
+	newBody, err := encrypt.Encrypt(body, p.publicKey)
 	if err != nil {
 		return body, errors.Join(err, ErrorCantEcryptBody)
-
 	}
 	return newBody, nil
 }

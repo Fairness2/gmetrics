@@ -1,7 +1,6 @@
 package config
 
 import (
-	"crypto/rsa"
 	"errors"
 	"flag"
 	incnf "gmetrics/internal/config"
@@ -25,7 +24,7 @@ func Parse() (*CliConfig, error) {
 		return nil, err
 	}
 
-	key, err := incnf.ParseKeyFromFile[rsa.PublicKey](cnf.CryptoKeyPath, "RSA PUBLIC KEY")
+	key, err := incnf.ParsePublicKeyFromFile(cnf.CryptoKeyPath)
 	if err != nil && !errors.Is(err, incnf.ErrorEmptyPublicKeyPath) {
 		return nil, err
 	}
@@ -64,6 +63,9 @@ func parseFromEnv(params *CliConfig) error {
 	if cnf.RateLimit > 0 {
 		params.RateLimit = cnf.RateLimit
 	}
+	if cnf.CryptoKeyPath != "" {
+		params.CryptoKeyPath = cnf.CryptoKeyPath
+	}
 
 	return nil
 }
@@ -81,6 +83,7 @@ func parseFromCli(cnf *CliConfig) error {
 	flag.StringVar(&cnf.LogLevel, "ll", DefaultLogLevel, "level of logging")
 	flag.StringVar(&cnf.HashKey, "k", DefaultHashKey, "encrypted key")
 	flag.IntVar(&cnf.RateLimit, "l", DefaultRateLimit, "number of simultaneously outgoing requests to the server")
+	flag.StringVar(&cnf.CryptoKeyPath, "crypto-key", "", "crypto key")
 
 	// Парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse() // Сейчас будет выход из приложения, поэтому код ниже не будет исполнен, но может пригодиться в будущем, если поменять флаг выхода или будет несколько сетов
