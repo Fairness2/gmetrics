@@ -40,6 +40,8 @@ type CliConfig struct {
 	CryptoKeyPath string `env:"CRYPTO_KEY"`
 	// CryptoKey Приватный ключ для дешифрования тела запроса
 	CryptoKey *rsa.PrivateKey
+	// ConfigFilePath Путь к файлу с конфигурацией
+	ConfigFilePath string `env:"CONFIG"`
 }
 
 // Params конфигурация приложения

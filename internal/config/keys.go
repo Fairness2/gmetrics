@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-var ErrorEmptyPublicKeyPath = errors.New("no public key path specified")
+var ErrorEmptyKeyPath = errors.New("no key path specified")
 
 // ParsePublicKeyFromFile получаем ключ из указанного файла
 func ParsePublicKeyFromFile(publicKeyPath string) (*rsa.PublicKey, error) {
@@ -44,7 +44,7 @@ func ParsePrivateKeyFromFile(publicKeyPath string) (*rsa.PrivateKey, error) {
 // Он возвращает декодированный *pem.Block и ошибку, если она возникает во время чтения или декодирования содержимого файла.
 func getKeyFromFile(publicKeyPath string, blockType string) (*pem.Block, error) {
 	if publicKeyPath == "" {
-		return nil, ErrorEmptyPublicKeyPath
+		return nil, ErrorEmptyKeyPath
 	}
 
 	rawKey, err := os.ReadFile(publicKeyPath)
