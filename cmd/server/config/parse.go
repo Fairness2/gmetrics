@@ -120,7 +120,7 @@ func parseFromFile(cnf *CliConfig) error {
 	if fileConf.StoreInterval.Duration != 0 && cnf.StoreInterval == DefaultStoreInterval {
 		cnf.StoreInterval = int64(fileConf.StoreInterval.Seconds())
 	}
-	if fileConf.Restore != DefaultRestore && cnf.Restore == DefaultRestore {
+	if fileConf.Restore && !cnf.Restore {
 		cnf.Restore = fileConf.Restore
 	}
 	if fileConf.StoreFile != "" && cnf.FileStorage == DefaultFilePath {
