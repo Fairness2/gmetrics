@@ -18,7 +18,6 @@ import (
 	"log"
 	"net/http"
 	_ "net/http/pprof" // подключаем пакет pprof
-	"os"
 	"os/signal"
 	"syscall"
 
@@ -50,7 +49,8 @@ func main() {
 
 // runApplication производим старт приложения
 func runApplication() error {
-	ctx, cancel := context.WithCancel(context.Background()) // Контекст для правильной остановки синхронизации
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	//ctx, cancel := context.WithCancel(context.Background()) // Контекст для правильной остановки синхронизации
 	defer func() {
 		logger.Log.Info("Cancel context")
 		cancel()
@@ -97,11 +97,12 @@ func runApplication() error {
 		return nil
 	})
 	// Регистрируем прослушиватель для закрытия записи в файл и завершения сервера
-	stop := make(chan os.Signal, 1)
+	/*stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	<-stop
+	<-stop*/
+	<-ctx.Done()
 	logger.Log.Info("Stopping server")
-	cancel()
+	//cancel()
 	if err = stopServer(server, ctx); err != nil { // Запускаем сервер
 		return err
 	}

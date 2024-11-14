@@ -11,7 +11,6 @@ import (
 	"log"
 	"net/http"
 	_ "net/http/pprof" // подключаем пакет pprof
-	"os"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -46,8 +45,8 @@ func main() {
 
 	// Создаём новую коллекцию метрик и устанавливаем её глобально
 	collection.Collection = collection.NewCollection()
-
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	//ctx, cancel := context.WithCancel(notifyContext)
 	defer cancel()
 	// Создаём группу ожидания на 2 потока: сборки данных и отправки
 	wg := sync.WaitGroup{}
@@ -76,14 +75,15 @@ func main() {
 	}()
 
 	// Ожидаем сигнала завершения Ctrl+C, чтобы корректно завершить работу
-	stop := make(chan os.Signal, 1)
+	<-ctx.Done()
+	/*stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	select {
 	case <-stop:
 		cancel()
 	case <-ctx.Done():
 		// continue
-	}
+	}*/
 	logger.Log.Info("Agent is stopping")
 	wg.Wait() // Ожидаем завершения всех горутин
 	logger.Log.Infow("Agent stopped")
