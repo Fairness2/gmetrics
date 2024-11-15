@@ -11,13 +11,13 @@ import (
 	"gmetrics/internal/buildflags"
 	"gmetrics/internal/contextkeys"
 	"gmetrics/internal/database"
+	"gmetrics/internal/encrypt"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/middlewares"
 	"log"
 	"net/http"
 	_ "net/http/pprof" // подключаем пакет pprof
-	"os"
 	"os/signal"
 	"syscall"
 
@@ -49,7 +49,8 @@ func main() {
 
 // runApplication производим старт приложения
 func runApplication() error {
-	ctx, cancel := context.WithCancel(context.Background()) // Контекст для правильной остановки синхронизации
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	//ctx, cancel := context.WithCancel(context.Background()) // Контекст для правильной остановки синхронизации
 	defer func() {
 		logger.Log.Info("Cancel context")
 		cancel()
@@ -96,11 +97,9 @@ func runApplication() error {
 		return nil
 	})
 	// Регистрируем прослушиватель для закрытия записи в файл и завершения сервера
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	<-stop
+	<-ctx.Done()
 	logger.Log.Info("Stopping server")
-	cancel()
+	//cancel()
 	if err = stopServer(server, ctx); err != nil { // Запускаем сервер
 		return err
 	}
@@ -151,12 +150,15 @@ func stopServer(server *http.Server, ctx context.Context) error {
 // getRouter конфигурация роутинга приложение
 func getRouter() chi.Router {
 	router := chi.NewRouter()
+	decrypter := encrypt.NewDecrypter(config.Params.CryptoKey)
 	// Устанавилваем мидлваре
 	router.Use(
-		cMiddleware.StripSlashes,          // Убираем лишние слеши
-		logger.LogRequests,                // Логируем данные запроса
-		middlewares.GZIPCompressResponse,  // Сжимаем ответ TODO исключить для роутов, которые будут возвращать не application/json или text/html. Проверять в мидлваре или компрессоре может быть не эффективно,так как заголовок с контентом может быть поставлен позже записи контента
+		cMiddleware.StripSlashes,         // Убираем лишние слеши
+		logger.LogRequests,               // Логируем данные запроса
+		middlewares.GZIPCompressResponse, // Сжимаем ответ TODO исключить для роутов, которые будут возвращать не application/json или text/html. Проверять в мидлваре или компрессоре может быть не эффективно,так как заголовок с контентом может быть поставлен позже записи контента
+		middlewares.CheckSign,
 		middlewares.GZIPDecompressRequest, // Разжимаем тело ответа
+		decrypter.Middleware,
 	)
 	// Сохранение метрики по URL
 	router.Post("/update/{type}/{name}/{value}", handlemetric.URLHandler)
@@ -173,8 +175,6 @@ func getRouter() chi.Router {
 		r.Use(middlewares.JSONHeaders)
 
 		router.Group(func(r chi.Router) {
-			// Устанавилваем мидлваре
-			r.Use(middlewares.CheckSign) // Проверка подписи тела
 			// Сохранение метрики с помощью JSON тела
 			r.Post("/update", handlemetric.JSONHandler)
 			// Сохранение метрик с помощью JSON тела
@@ -211,7 +211,11 @@ func InitStore(ctx context.Context) {
 
 // InitLogger инициализируем логер
 func InitLogger() (*zap.SugaredLogger, error) {
-	lgr, err := logger.New(config.Params.LogLevel)
+	loggerLevel, err := logger.ParseLevel(config.Params.LogLevel)
+	if err != nil {
+		return nil, err
+	}
+	lgr, err := logger.New(loggerLevel)
 	if err != nil {
 		return nil, err
 	}

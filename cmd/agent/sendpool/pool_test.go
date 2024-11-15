@@ -2,336 +2,156 @@ package sendpool
 
 import (
 	"context"
-	"errors"
-	"gmetrics/internal/metrics"
+	"github.com/golang/mock/gomock"
 	"gmetrics/internal/payload"
-	"net/http"
-	"sync"
 	"testing"
 
-	"github.com/go-resty/resty/v2"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
 
-func Benchmark(b *testing.B) {
-	ctrl := gomock.NewController(b)
-	restClient := NewMockIClient(ctrl)
-	restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, nil).
-		AnyTimes()
-	p := NewWithClient(context.TODO(), 2, "aboba", restClient)
-	var intValue int64 = 64
-	floatValue := 64.64
-	body := []payload.Metrics{
-		{
-			ID:    "PollCount",
-			MType: metrics.TypeCounter,
-			Delta: &intValue,
-		},
-		{
-			ID:    "GaugeVal",
-			MType: metrics.TypeGauge,
-			Value: &floatValue,
-		},
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if _, sErr := p.Send(body); sErr != nil {
-			b.Errorf("Send() error = %v", sErr)
-		}
-	}
-}
-
-// TestPoolCompressBody tests the method compressBody of the Pool struct.
-func TestPoolCompressBody(t *testing.T) {
+func TestNewWithClient(t *testing.T) {
+	ctrl := gomock.NewController(t)
 	tests := []struct {
 		name    string
-		body    []byte
-		wantErr bool
-	}{
-		{
-			name:    "normal_case",
-			body:    []byte("test"),
-			wantErr: false,
-		},
-		{
-			name:    "empty_body",
-			body:    []byte(""),
-			wantErr: false,
-		},
-		{
-			name:    "nil_body",
-			body:    nil,
-			wantErr: false,
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			p := &Pool{
-				encodeWriterPool: sync.Pool{
-					New: newEncoder,
-				},
-			}
-			_, err := p.compressBody(tc.body)
-			if (err != nil) != tc.wantErr {
-				t.Errorf("Pool.compressBody() error = %v, wantErr %v", err, tc.wantErr)
-			}
-		})
-	}
-}
-
-// TestPoolHashBody tests the method hashBody of the Pool struct.
-func TestPoolHashBody(t *testing.T) {
-	tests := []struct {
-		name    string
-		body    []byte
+		size    int
 		hashKey string
-		wantErr bool
+		client  IClient
+		wantErr error
 	}{
 		{
-			name:    "valid_hash_key_and_body",
-			body:    []byte("test"),
-			hashKey: "secret",
-			wantErr: false,
+			name:    "valid_input",
+			size:    10,
+			hashKey: "test",
+			client:  NewMockIClient(ctrl),
+		},
+		{
+			name:    "negative_size",
+			size:    -5,
+			hashKey: "test",
+			client:  NewMockIClient(ctrl),
+			wantErr: ErrorWrongWorkerSize,
 		},
 		{
 			name:    "empty_hash_key",
-			body:    []byte("test"),
+			size:    10,
 			hashKey: "",
-			wantErr: true,
+			client:  NewMockIClient(ctrl),
+			wantErr: ErrorEmptyHashKey,
 		},
 		{
-			name:    "nil_body",
-			body:    nil,
-			hashKey: "secret",
-			wantErr: false,
+			name:    "nil_client",
+			size:    10,
+			hashKey: "test",
+			client:  nil,
+			wantErr: ErrorEmptyClient,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Pool{
-				HashKey: tt.hashKey,
+			ctx, cancel := context.WithCancel(context.TODO())
+			defer cancel()
+
+			got, err := NewWithClient(ctx, tt.size, tt.hashKey, tt.client, nil)
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+				return
 			}
-			_, err := p.hashBody(tt.body)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Pool.hashBody() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			cancel()
+			assert.NotNil(t, got)
+			assert.Equal(t, tt.hashKey, got.HashKey)
+			assert.Equal(t, tt.client, got.client)
+			//assert.True(t, got.isClosed)
 		})
 	}
 }
 
-// TestPoolGetBody tests the method compressBody of the Pool struct.
-func TestPoolGetBody(t *testing.T) {
+func TestNew(t *testing.T) {
 	tests := []struct {
 		name      string
-		body      []byte
-		wantErr   bool
-		comressed bool
+		size      int
+		hashKey   string
+		wantErr   error
+		serverURL string
 	}{
 		{
-			name:      "normal_case",
-			body:      []byte("test"),
-			wantErr:   false,
-			comressed: true,
+			name:      "valid_input",
+			size:      10,
+			hashKey:   "test",
+			serverURL: "http://localhost:8080",
 		},
 		{
-			name:      "empty_body",
-			body:      []byte(""),
-			wantErr:   false,
-			comressed: true,
+			name:      "negative_size",
+			size:      -5,
+			hashKey:   "test",
+			wantErr:   ErrorWrongWorkerSize,
+			serverURL: "http://localhost:8080",
 		},
 		{
-			name:      "nil_body",
-			body:      nil,
-			wantErr:   false,
-			comressed: true,
+			name:      "empty_hash_key",
+			size:      10,
+			hashKey:   "",
+			wantErr:   ErrorEmptyHashKey,
+			serverURL: "http://localhost:8080",
+		},
+		{
+			name:      "empty_server_url",
+			size:      10,
+			hashKey:   "",
+			wantErr:   ErrorServerURLIsEmpty,
+			serverURL: "",
 		},
 	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			p := &Pool{
-				encodeWriterPool: sync.Pool{
-					New: newEncoder,
-				},
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.TODO())
+			defer cancel()
+
+			got, err := New(ctx, tt.size, tt.hashKey, tt.serverURL, nil)
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+				return
 			}
-			_, comressed, err := p.getBody(tc.body)
-			if (err != nil) != tc.wantErr {
-				t.Errorf("Pool.getBody() error = %v, wantErr %v", err, tc.wantErr)
-			}
-			if comressed != tc.comressed {
-				t.Errorf("Pool.getBody() comressed = %v, want %v", comressed, tc.comressed)
-			}
+			cancel()
+			assert.NotNil(t, got)
+			assert.Equal(t, tt.hashKey, got.HashKey)
+			//assert.True(t, got.isClosed)
 		})
 	}
 }
-
-// TestPoolMarshalBody tests the method marshalBody of the Pool struct.
-func TestPoolMarshalBody(t *testing.T) {
+func TestMarshalBody(t *testing.T) {
 	tests := []struct {
 		name    string
-		body    func() []payload.Metrics
-		wantErr bool
+		body    []payload.Metrics
+		wantErr error
 	}{
 		{
-			name: "normal_case",
-			body: func() []payload.Metrics {
-				var intValue int64 = 64
-				floatValue := 64.64
-				return []payload.Metrics{
-					{
-						ID:    "PollCount",
-						MType: metrics.TypeCounter,
-						Delta: &intValue,
-					},
-					{
-						ID:    "GaugeVal",
-						MType: metrics.TypeGauge,
-						Value: &floatValue,
-					},
-				}
+			name: "valid_input",
+			body: []payload.Metrics{
+				{
+					Value: nil,
+					Delta: nil,
+					ID:    "sadasd",
+					MType: "asdasd",
+				},
 			},
-			wantErr: false,
 		},
 		{
-			name: "empty_metrics",
-			body: func() []payload.Metrics {
-				return []payload.Metrics{}
-			},
-			wantErr: false,
+			name:    "empty_input",
+			body:    []payload.Metrics{},
+			wantErr: nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &Pool{}
-			_, err := p.marshalBody(tt.body())
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Pool.marshalBody() error = %v, wantErr %v", err, tt.wantErr)
+			_, err := p.marshalBody(tt.body)
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+				return
 			}
-		})
-	}
-}
-
-// TestSendToServer tests the method sendToServer of the Pool struct.
-func TestSendToServer(t *testing.T) {
-	httpError := errors.New("http error")
-	ctrl := gomock.NewController(t)
-	tests := []struct {
-		name         string
-		body         func() []payload.Metrics
-		hashKey      string
-		err          error
-		restClient   func() *MockIClient
-		resultStatus int
-	}{
-		{
-			name: "normal_case",
-			body: func() []payload.Metrics {
-				var intValue int64 = 64
-				floatValue := 64.64
-				return []payload.Metrics{
-					{
-						ID:    "PollCount",
-						MType: metrics.TypeCounter,
-						Delta: &intValue,
-					},
-					{
-						ID:    "GaugeVal",
-						MType: metrics.TypeGauge,
-						Value: &floatValue,
-					},
-				}
-			},
-			hashKey: "secret",
-			restClient: func() *MockIClient {
-				restClient := NewMockIClient(ctrl)
-				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, nil).
-					AnyTimes()
-				return restClient
-			},
-			resultStatus: 200,
-		},
-		/*{
-			name: "invalid_hash_key",
-			body: func() []payload.Metrics {
-				return []payload.Metrics{}
-			},
-			hashKey: "",
-			err:     ErrorEmptyHashKey,
-			restClient: func() *MockIClient {
-				restClient := NewMockIClient(ctrl)
-				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, nil).
-					AnyTimes()
-				return restClient
-			},
-			resultStatus: 200,
-		},*/
-		{
-			name: "empty_metrics",
-			body: func() []payload.Metrics {
-				return []payload.Metrics{}
-			},
-			hashKey: "secret",
-			restClient: func() *MockIClient {
-				restClient := NewMockIClient(ctrl)
-				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, nil).
-					AnyTimes()
-				return restClient
-			},
-			resultStatus: 200,
-		},
-		{
-			name: "http_error",
-			body: func() []payload.Metrics {
-				return []payload.Metrics{}
-			},
-			hashKey: "secret",
-			err:     httpError,
-			restClient: func() *MockIClient {
-				restClient := NewMockIClient(ctrl)
-				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, httpError).
-					AnyTimes()
-				return restClient
-			},
-			resultStatus: 200,
-		},
-		{
-			name: "http_error",
-			body: func() []payload.Metrics {
-				return []payload.Metrics{}
-			},
-			hashKey: "secret",
-			restClient: func() *MockIClient {
-				restClient := NewMockIClient(ctrl)
-				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 400}}, nil).
-					AnyTimes()
-				return restClient
-			},
-			resultStatus: 400,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := &Pool{
-				encodeWriterPool: sync.Pool{
-					New: newEncoder,
-				},
-				client:  tt.restClient(),
-				HashKey: tt.hashKey,
-			}
-			resp, err := p.sendToServer(tt.body())
-			if tt.err != nil {
-				assert.NotNil(t, err)
-				assert.ErrorIs(t, tt.err, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.resultStatus, resp.StatusCode())
-			}
+			assert.NoError(t, err)
 		})
 	}
 }

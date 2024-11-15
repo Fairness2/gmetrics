@@ -11,7 +11,6 @@ import (
 	"log"
 	"net/http"
 	_ "net/http/pprof" // подключаем пакет pprof
-	"os"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -46,8 +45,8 @@ func main() {
 
 	// Создаём новую коллекцию метрик и устанавливаем её глобально
 	collection.Collection = collection.NewCollection()
-
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	//ctx, cancel := context.WithCancel(notifyContext)
 	defer cancel()
 	// Создаём группу ожидания на 2 потока: сборки данных и отправки
 	wg := sync.WaitGroup{}
@@ -62,7 +61,10 @@ func main() {
 	}() // Запускаем сборку данных использования системы
 
 	// Создаём пул отправок на сервер
-	sendPool := sendpool.New(ctx, config.Params.RateLimit, config.Params.HashKey, config.Params.ServerURL)
+	sendPool, poolErr := sendpool.New(ctx, config.Params.RateLimit, config.Params.HashKey, config.Params.ServerURL, config.Params.CryptoKey)
+	if poolErr != nil {
+		log.Fatal(poolErr)
+	}
 
 	// Запускаем отправку данных
 	client := sender.New(collection.Collection, sendPool)
@@ -73,14 +75,7 @@ func main() {
 	}()
 
 	// Ожидаем сигнала завершения Ctrl+C, чтобы корректно завершить работу
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	select {
-	case <-stop:
-		cancel()
-	case <-ctx.Done():
-		// continue
-	}
+	<-ctx.Done()
 	logger.Log.Info("Agent is stopping")
 	wg.Wait() // Ожидаем завершения всех горутин
 	logger.Log.Infow("Agent stopped")
@@ -88,7 +83,11 @@ func main() {
 
 // InitLogger инициализируем логер
 func InitLogger() (*zap.SugaredLogger, error) {
-	lgr, err := logger.New(config.Params.LogLevel)
+	loggerLevel, err := logger.ParseLevel(config.Params.LogLevel)
+	if err != nil {
+		return nil, err
+	}
+	lgr, err := logger.New(loggerLevel)
 	if err != nil {
 		return nil, err
 	}

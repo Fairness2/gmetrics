@@ -1,8 +1,11 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
+	incnf "gmetrics/internal/config"
+	"os"
 	"strings"
 
 	"github.com/caarlos0/env/v6"
@@ -13,15 +16,26 @@ func Parse() (*CliConfig, error) {
 	// Регистрируем новое хранилище
 	cnf := InitializeDefaultConfig()
 	// Заполняем конфигурацию из параметров командной строки
-	err := parseFromCli(cnf)
-	if err != nil {
+	if err := parseFromCli(cnf); err != nil {
 		return nil, err
 	}
 	// Заполняем конфигурацию из окружения
-	err = parseFromEnv(cnf)
-	if err != nil {
+	if err := parseFromEnv(cnf); err != nil {
 		return nil, err
 	}
+	// Заполняем из файла то, что не заполнили из остальных
+	if err := parseFromFile(cnf); err != nil {
+		return nil, err
+	}
+
+	key, err := incnf.ParsePublicKeyFromFile(cnf.CryptoKeyPath)
+	if err != nil && !errors.Is(err, incnf.ErrorEmptyKeyPath) {
+		return nil, err
+	}
+	if key != nil {
+		cnf.CryptoKey = key
+	}
+
 	return cnf, nil
 }
 
@@ -53,6 +67,12 @@ func parseFromEnv(params *CliConfig) error {
 	if cnf.RateLimit > 0 {
 		params.RateLimit = cnf.RateLimit
 	}
+	if cnf.CryptoKeyPath != "" {
+		params.CryptoKeyPath = cnf.CryptoKeyPath
+	}
+	if cnf.ConfigFilePath != "" {
+		params.ConfigFilePath = cnf.ConfigFilePath
+	}
 
 	return nil
 }
@@ -70,6 +90,9 @@ func parseFromCli(cnf *CliConfig) error {
 	flag.StringVar(&cnf.LogLevel, "ll", DefaultLogLevel, "level of logging")
 	flag.StringVar(&cnf.HashKey, "k", DefaultHashKey, "encrypted key")
 	flag.IntVar(&cnf.RateLimit, "l", DefaultRateLimit, "number of simultaneously outgoing requests to the server")
+	flag.StringVar(&cnf.CryptoKeyPath, "crypto-key", "", "crypto key")
+	flag.StringVar(&cnf.ConfigFilePath, "c", "", "Path to the configuration file (shorthand)")
+	flag.StringVar(&cnf.ConfigFilePath, "config", "", "Path to the configuration file")
 
 	// Парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse() // Сейчас будет выход из приложения, поэтому код ниже не будет исполнен, но может пригодиться в будущем, если поменять флаг выхода или будет несколько сетов
@@ -93,5 +116,33 @@ func setServerURL(s string, cnf *CliConfig) error {
 		cnf.ServerURL = "http://" + s
 	}
 
+	return nil
+}
+
+// parseFromFile заполняем конфигурацию из файла конфигурации
+func parseFromFile(cnf *CliConfig) error {
+	if cnf.ConfigFilePath == "" {
+		return nil
+	}
+	file, err := os.ReadFile(cnf.ConfigFilePath)
+	if err != nil {
+		return err
+	}
+	var fileConf FileConfig
+	if err := json.Unmarshal(file, &fileConf); err != nil {
+		return err
+	}
+	if fileConf.Address != "" && cnf.ServerURL == DefaultServerURL {
+		cnf.ServerURL = fileConf.Address
+	}
+	if fileConf.ReportInterval.Duration != 0 && cnf.ReportInterval == DefaultReportInterval {
+		cnf.ReportInterval = int64(fileConf.ReportInterval.Seconds())
+	}
+	if fileConf.PollInterval.Duration != 0 && cnf.PollInterval == DefaultPollInterval {
+		cnf.PollInterval = int64(fileConf.PollInterval.Seconds())
+	}
+	if fileConf.CryptoKey != "" && cnf.CryptoKeyPath == "" {
+		cnf.CryptoKeyPath = fileConf.CryptoKey
+	}
 	return nil
 }
