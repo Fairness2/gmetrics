@@ -97,9 +97,6 @@ func runApplication() error {
 		return nil
 	})
 	// Регистрируем прослушиватель для закрытия записи в файл и завершения сервера
-	/*stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	<-stop*/
 	<-ctx.Done()
 	logger.Log.Info("Stopping server")
 	//cancel()

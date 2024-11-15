@@ -76,14 +76,6 @@ func main() {
 
 	// Ожидаем сигнала завершения Ctrl+C, чтобы корректно завершить работу
 	<-ctx.Done()
-	/*stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	select {
-	case <-stop:
-		cancel()
-	case <-ctx.Done():
-		// continue
-	}*/
 	logger.Log.Info("Agent is stopping")
 	wg.Wait() // Ожидаем завершения всех горутин
 	logger.Log.Infow("Agent stopped")
