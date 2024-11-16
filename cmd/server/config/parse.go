@@ -15,16 +15,13 @@ func Parse() (*CliConfig, error) {
 	// Регистрируем новое хранилище
 	cnf := InitializeDefaultConfig()
 	// Заполняем конфигурацию из параметров командной строки
-	err := parseFromCli(cnf)
-	if err != nil {
+	if err := parseFromCli(cnf); err != nil {
 		return nil, err
 	}
 	// Заполняем конфигурацию из окружения
-	err = parseFromEnv(cnf)
-	if err != nil {
+	if err := parseFromEnv(cnf); err != nil {
 		return nil, err
 	}
-
 	// Заполняем из файла то, что не заполнили из остальных
 	if err := parseFromFile(cnf); err != nil {
 		return nil, err

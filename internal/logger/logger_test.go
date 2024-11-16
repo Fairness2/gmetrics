@@ -89,3 +89,34 @@ func TestNew(t *testing.T) {
 		})
 	}
 }
+
+func TestInitLogger(t *testing.T) {
+	cases := []struct {
+		name        string
+		level       string
+		expectError bool
+	}{
+		{
+			name:        "test_with_debug_level",
+			level:       "debug",
+			expectError: false,
+		},
+		{
+			name:        "non-existent-level",
+			level:       "non-existent-level",
+			expectError: true,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := InitLogger(tc.level)
+			if tc.expectError {
+				assert.Error(t, err, "Initlogger() error = %v, wantErr %v", err, tc.expectError)
+			} else {
+				assert.NoError(t, err, "Initlogger() error = %v, wantErr %v", err, tc.expectError)
+			}
+		})
+	}
+}

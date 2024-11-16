@@ -124,7 +124,8 @@ func (c *Client) sendToServer(body []payload.Metrics) error {
 	res, err := c.sendPool.Send(body)
 	logger.Log.Info("Finish sending metrics")
 	if err != nil {
-		return metricerrors.NewRetriable(err)
+		//return metricerrors.NewRetriable(err)
+		return err
 	}
 	if statusCode := res.StatusCode(); statusCode != http.StatusOK {
 		return metricerrors.NewRetriable(fmt.Errorf("http status code %d", statusCode))

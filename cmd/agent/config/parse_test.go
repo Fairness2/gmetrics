@@ -8,6 +8,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	testFilePath    = "test_config.json"
+	nonExistentFile = "non_existent_file.json"
+	malformedJson   = "malformed.json"
+)
+
 func TestParseFromCli(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -212,6 +218,128 @@ func TestParse(t *testing.T) {
 				return
 			}
 			assert.Truef(t, compareConfigs(tc.expected, actual), "Expected %+v, but got %+v", tc.expected, actual)
+		})
+	}
+}
+
+func createFileWithContent(path string, content []byte) {
+	os.WriteFile(path, content, os.ModePerm)
+}
+
+func TestParseFromFile(t *testing.T) {
+	tests := []struct {
+		name       string
+		cfgPath    string
+		want       *CliConfig
+		wantErr    bool
+		getCnf     func(t *testing.T) *CliConfig
+		fileConfig string
+	}{
+		{
+			name:    "no_config_file_provided",
+			cfgPath: "",
+			want:    &CliConfig{},
+			getCnf: func(t *testing.T) *CliConfig {
+				return &CliConfig{
+					ConfigFilePath: "",
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name:    "config_file_does_not_exist",
+			cfgPath: nonExistentFile,
+			want:    &CliConfig{},
+			getCnf: func(t *testing.T) *CliConfig {
+				return &CliConfig{
+					ConfigFilePath: nonExistentFile,
+				}
+			},
+			wantErr: true,
+		},
+		{
+			name:    "config_file_exists_with_valid_data",
+			cfgPath: testFilePath,
+			fileConfig: `{
+    "address": "localhost:8086",
+    "report_interval": "1s",
+    "poll_interval": "1s",
+    "crypto_key": "/path/to/key.pem"
+}`,
+			getCnf: func(t *testing.T) *CliConfig {
+				return &CliConfig{
+					ServerURL:      DefaultServerURL,
+					ReportInterval: DefaultReportInterval,
+					PollInterval:   DefaultPollInterval,
+					CryptoKeyPath:  "",
+					ConfigFilePath: testFilePath,
+				}
+			},
+			want: &CliConfig{
+				ServerURL:      "localhost:8086",
+				ReportInterval: 1,
+				PollInterval:   1,
+				CryptoKeyPath:  "/path/to/key.pem",
+				ConfigFilePath: testFilePath,
+			},
+			wantErr: false,
+		},
+		{
+			name:    "config_file_exists_with_invalid_data",
+			cfgPath: testFilePath,
+			fileConfig: `{
+    "address": "localhost:8`,
+			getCnf: func(t *testing.T) *CliConfig {
+				return &CliConfig{
+					ConfigFilePath: testFilePath,
+				}
+			},
+			want:    &CliConfig{},
+			wantErr: true,
+		},
+		{
+			name:    "config_file_exists_with_valid_data_but_config_not_default",
+			cfgPath: testFilePath,
+			fileConfig: `{
+    "address": "localhost:8086",
+    "report_interval": "1s",
+    "poll_interval": "1s",
+    "crypto_key": "/path/to/key.pem"
+}`,
+			getCnf: func(t *testing.T) *CliConfig {
+				return &CliConfig{
+					ServerURL:      "localhost:8086",
+					ReportInterval: 2,
+					PollInterval:   10,
+					CryptoKeyPath:  "/path/to/key1.pem",
+					ConfigFilePath: testFilePath,
+				}
+			},
+			want: &CliConfig{
+				ServerURL:      "localhost:8086",
+				ReportInterval: 2,
+				PollInterval:   10,
+				CryptoKeyPath:  "/path/to/key1.pem",
+				ConfigFilePath: testFilePath,
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.cfgPath == testFilePath {
+				defer os.Remove(tt.cfgPath)
+				createFileWithContent(tt.cfgPath, []byte(tt.fileConfig))
+			}
+			cnf := tt.getCnf(t)
+			err := parseFromFile(cnf)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Truef(t, compareConfigs(tt.want, cnf), "Expected %+v, but got %+v", tt.want, cnf)
 		})
 	}
 }

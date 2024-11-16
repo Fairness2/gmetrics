@@ -14,8 +14,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-
-	"go.uber.org/zap"
 )
 
 func main() {
@@ -30,7 +28,7 @@ func main() {
 		log.Fatal(err)
 	}
 	config.Params = cnf
-	_, err = InitLogger()
+	_, err = logger.InitLogger(config.Params.LogLevel)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -79,19 +77,4 @@ func main() {
 	logger.Log.Info("Agent is stopping")
 	wg.Wait() // Ожидаем завершения всех горутин
 	logger.Log.Infow("Agent stopped")
-}
-
-// InitLogger инициализируем логер
-func InitLogger() (*zap.SugaredLogger, error) {
-	loggerLevel, err := logger.ParseLevel(config.Params.LogLevel)
-	if err != nil {
-		return nil, err
-	}
-	lgr, err := logger.New(loggerLevel)
-	if err != nil {
-		return nil, err
-	}
-	logger.Log = lgr
-
-	return lgr, nil
 }

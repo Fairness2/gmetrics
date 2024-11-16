@@ -23,7 +23,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	cMiddleware "github.com/go-chi/chi/v5/middleware"
-	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -56,10 +55,20 @@ func runApplication() error {
 		cancel()
 	}()
 
-	_, err := InitLogger()
+	_, err := logger.InitLogger(config.Params.LogLevel)
 	if err != nil {
 		return err
 	}
+
+	// Показываем конфигурацию сервера
+	logger.Log.Infow("Running server with configuration",
+		"address", config.Params.Address,
+		"logLevel", config.Params.LogLevel,
+		"fileStorage", config.Params.FileStorage,
+		"restore", config.Params.Restore,
+		"storeInterval", config.Params.StoreInterval,
+		"databaseDSN", config.Params.DatabaseDSN,
+	)
 
 	// Вызываем функцию закрытия базы данных
 	defer closeDB()
@@ -209,30 +218,6 @@ func InitStore(ctx context.Context) {
 	}
 }
 
-// InitLogger инициализируем логер
-func InitLogger() (*zap.SugaredLogger, error) {
-	loggerLevel, err := logger.ParseLevel(config.Params.LogLevel)
-	if err != nil {
-		return nil, err
-	}
-	lgr, err := logger.New(loggerLevel)
-	if err != nil {
-		return nil, err
-	}
-	logger.Log = lgr
-	// Показываем конфигурацию сервера
-	logger.Log.Infow("Running server with configuration",
-		"address", config.Params.Address,
-		"logLevel", config.Params.LogLevel,
-		"fileStorage", config.Params.FileStorage,
-		"restore", config.Params.Restore,
-		"storeInterval", config.Params.StoreInterval,
-		"databaseDSN", config.Params.DatabaseDSN,
-	)
-
-	return lgr, nil
-}
-
 // initDB инициализация подключения к бд
 // func initDB(ctx context.Context, wg *errgroup.Group*) error {
 func initDB() error {
@@ -242,17 +227,6 @@ func initDB() error {
 	if err != nil {
 		return err
 	}
-
-	/*wg.Go(func() error {
-		<-ctx.Done()
-		logger.Log.Info("Closing database connection for context")
-
-		if dErr := database.DB.Close(); dErr != nil {
-			return dErr
-			//logger.Log.Error(err)
-		}
-		return nil
-	})*/
 
 	if config.Params.DatabaseDSN != "" {
 		logger.Log.Info("Migrate migrations")

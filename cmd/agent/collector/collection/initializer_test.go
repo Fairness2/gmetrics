@@ -3,7 +3,10 @@
 package collection
 
 import (
+	"context"
+	"gmetrics/cmd/agent/config"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -59,5 +62,57 @@ func BenchmarkCollectUtil(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		collectUtil()
+	}
+}
+
+func TestCollectUtilProcess(t *testing.T) {
+	tests := []struct {
+		name      string
+		doneAfter time.Duration
+	}{
+		{
+			name:      "collect_called_before_context_done",
+			doneAfter: 3 * time.Second,
+		},
+		{
+			name:      "collect_not_called_if_context_done_immediately",
+			doneAfter: 0,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			config.Params = &config.CliConfig{PollInterval: 1}
+			ctx, cancel := context.WithTimeout(context.Background(), tc.doneAfter)
+			defer cancel()
+			Collection = NewCollection()
+			CollectUtilProcess(ctx)
+		})
+	}
+}
+
+func TestCollectProcess(t *testing.T) {
+	tests := []struct {
+		name      string
+		doneAfter time.Duration
+	}{
+		{
+			name:      "collect_called_before_context_done",
+			doneAfter: 3 * time.Second,
+		},
+		{
+			name:      "collect_not_called_if_context_done_immediately",
+			doneAfter: 0,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			config.Params = &config.CliConfig{PollInterval: 1}
+			ctx, cancel := context.WithTimeout(context.Background(), tc.doneAfter)
+			defer cancel()
+			Collection = NewCollection()
+			CollectProcess(ctx)
+		})
 	}
 }

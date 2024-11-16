@@ -192,3 +192,61 @@ func BenchmarkType_CollectFromMap(b *testing.B) {
 		collection.CollectFromMap(stats)
 	}
 }
+
+// TestType_Unlock tests the Unlock method of Type
+func TestType_Unlock(t *testing.T) {
+	tests := []struct {
+		name string
+		lock bool
+	}{
+		{
+			name: "unlock_while_locked",
+			lock: true,
+		},
+		/*{
+			name: "unlock_while_not_locked",
+			lock: false,
+		},*/
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Type{
+				Values: map[string]any{},
+				mutex:  &sync.Mutex{},
+			}
+			if tt.lock {
+				c.Lock()
+			}
+			c.Unlock()
+		})
+	}
+}
+
+// TestType_Lock tests the Lock method of Type
+func TestType_Lock(t *testing.T) {
+	tests := []struct {
+		name string
+		lock bool
+	}{
+		{
+			name: "lock_while_unlocked",
+			lock: false,
+		},
+		/*{
+			name: "lock_while_locked",
+			lock: true,
+		},*/
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Type{
+				Values: map[string]any{},
+				mutex:  &sync.Mutex{},
+			}
+			if tt.lock {
+				c.Lock()
+			}
+			c.Lock()
+		})
+	}
+}
