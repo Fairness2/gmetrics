@@ -11,7 +11,6 @@ import (
 const (
 	testFilePath    = "test_config.json"
 	nonExistentFile = "non_existent_file.json"
-	malformedJson   = "malformed.json"
 )
 
 func TestParseFromCli(t *testing.T) {
