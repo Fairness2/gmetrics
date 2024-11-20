@@ -31,3 +31,5 @@ vendor/
 /cmd/agent/go_build_agent
 /cmd/server/go_build_server
 /cmd/staticlint/staticlint
+
+conf.json

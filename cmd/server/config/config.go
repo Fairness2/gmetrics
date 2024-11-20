@@ -1,6 +1,9 @@
 package config
 
-import "crypto/rsa"
+import (
+	"crypto/rsa"
+	"net"
+)
 
 const (
 	// DefaultServerURL Url сервера получателя метрик по умолчанию
@@ -27,21 +30,18 @@ const (
 
 // CliConfig конфигурация сервера из командной строки
 type CliConfig struct {
-	// Address адрес сервера
-	Address     string `env:"ADDRESS"`
-	LogLevel    string `env:"LOG_LEVEL"`    // Уровень логирования
-	FileStorage string `env:"FILE_STORAGE"` // Путь к хранению файлов, если не указан, то будет создано обычное хранилище в памяти
-	DatabaseDSN string `env:"DATABASE_DSN"` // подключение к базе данных
-	// HashKey Ключ для шифрования
-	HashKey       string `env:"KEY"`
-	StoreInterval int64  `env:"STORE_INTERVAL"` // период сохранения метрик в файл; 0 - синхронный режим
-	Restore       bool   `env:"RESTORE"`        // Надобность загрузки старых данных из файла при включении
-	// CryptoKeyPath Путь к файлу с приватным ключом
-	CryptoKeyPath string `env:"CRYPTO_KEY"`
-	// CryptoKey Приватный ключ для дешифрования тела запроса
-	CryptoKey *rsa.PrivateKey
-	// ConfigFilePath Путь к файлу с конфигурацией
-	ConfigFilePath string `env:"CONFIG"`
+	Address          string          `env:"ADDRESS"`        // адрес сервера
+	LogLevel         string          `env:"LOG_LEVEL"`      // Уровень логирования
+	FileStorage      string          `env:"FILE_STORAGE"`   // Путь к хранению файлов, если не указан, то будет создано обычное хранилище в памяти
+	DatabaseDSN      string          `env:"DATABASE_DSN"`   // подключение к базе данных
+	HashKey          string          `env:"KEY"`            // Ключ для шифрования
+	StoreInterval    int64           `env:"STORE_INTERVAL"` // период сохранения метрик в файл; 0 - синхронный режим
+	Restore          bool            `env:"RESTORE"`        // Надобность загрузки старых данных из файла при включении
+	CryptoKeyPath    string          `env:"CRYPTO_KEY"`     // Путь к файлу с приватным ключом
+	CryptoKey        *rsa.PrivateKey // Приватный ключ для дешифрования тела запроса
+	ConfigFilePath   string          `env:"CONFIG"`         // Путь к файлу с конфигурацией
+	TrustedSubnetStr string          `env:"TRUSTED_SUBNET"` // CIDR адрес подсети, запросы из которого будут обрабатываться
+	TrustedSubnet    *net.IPNet      // Доверенная подсеть
 }
 
 // Params конфигурация приложения

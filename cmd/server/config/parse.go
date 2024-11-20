@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	incnf "gmetrics/internal/config"
+	"net"
 	"os"
 
 	"github.com/caarlos0/env/v6"
@@ -33,6 +34,14 @@ func Parse() (*CliConfig, error) {
 	}
 	if key != nil {
 		cnf.CryptoKey = key
+	}
+
+	network, err := parseSubnet(cnf.TrustedSubnetStr)
+	if err != nil {
+		return nil, err
+	}
+	if network != nil {
+		cnf.TrustedSubnet = network
 	}
 
 	return cnf, nil
@@ -73,6 +82,9 @@ func parseFromEnv(params *CliConfig) error {
 	if cnf.ConfigFilePath != "" {
 		params.ConfigFilePath = cnf.ConfigFilePath
 	}
+	if cnf.TrustedSubnetStr != "" {
+		params.TrustedSubnetStr = cnf.TrustedSubnetStr
+	}
 	return nil
 }
 
@@ -89,6 +101,7 @@ func parseFromCli(cnf *CliConfig) (parseError error) {
 	flag.StringVar(&cnf.CryptoKeyPath, "crypto-key", "", "crypto key")
 	flag.StringVar(&cnf.ConfigFilePath, "c", "", "Path to the configuration file (shorthand)")
 	flag.StringVar(&cnf.ConfigFilePath, "config", "", "Path to the configuration file")
+	flag.StringVar(&cnf.TrustedSubnetStr, "t", "", "Trusted subnet for updated metrics")
 
 	// Парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse() // Сейчас будет выход из приложения, поэтому код ниже не будет исполнен, но может пригодиться в будущем, если поменять флаг выхода или будет несколько сетов
@@ -129,5 +142,20 @@ func parseFromFile(cnf *CliConfig) error {
 	if fileConf.CryptoKey != "" && cnf.CryptoKeyPath == "" {
 		cnf.CryptoKeyPath = fileConf.CryptoKey
 	}
+	if fileConf.TrustedSubnet != "" && cnf.TrustedSubnetStr == "" {
+		cnf.TrustedSubnetStr = fileConf.TrustedSubnet
+	}
 	return nil
+}
+
+// parseSubnet разбираем доверенную подсеть
+func parseSubnet(subnet string) (*net.IPNet, error) {
+	if subnet == "" {
+		return nil, nil
+	}
+	_, network, err := net.ParseCIDR(subnet)
+	if err != nil {
+		return nil, err
+	}
+	return network, nil
 }

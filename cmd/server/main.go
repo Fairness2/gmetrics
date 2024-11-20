@@ -160,6 +160,7 @@ func stopServer(server *http.Server, ctx context.Context) error {
 func getRouter() chi.Router {
 	router := chi.NewRouter()
 	decrypter := encrypt.NewDecrypter(config.Params.CryptoKey)
+	netFilter := middlewares.NewNetworkMiddleware(config.Params.TrustedSubnet)
 	// Устанавилваем мидлваре
 	router.Use(
 		cMiddleware.StripSlashes,         // Убираем лишние слеши
@@ -169,8 +170,12 @@ func getRouter() chi.Router {
 		middlewares.GZIPDecompressRequest, // Разжимаем тело ответа
 		decrypter.Middleware,
 	)
-	// Сохранение метрики по URL
-	router.Post("/update/{type}/{name}/{value}", handlemetric.URLHandler)
+	router.Group(func(r chi.Router) {
+		r.Use(netFilter.FilterNetwork)
+		// Сохранение метрики по URL
+		r.Post("/update/{type}/{name}/{value}", handlemetric.URLHandler)
+	})
+
 	// Получение всех метрик
 	router.Get("/", getmetrics.Handler)
 	// Получение отдельной метрики
@@ -182,8 +187,8 @@ func getRouter() chi.Router {
 	router.Group(func(r chi.Router) {
 		// Устанавилваем мидлваре
 		r.Use(middlewares.JSONHeaders)
-
-		router.Group(func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(netFilter.FilterNetwork)
 			// Сохранение метрики с помощью JSON тела
 			r.Post("/update", handlemetric.JSONHandler)
 			// Сохранение метрик с помощью JSON тела

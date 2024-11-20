@@ -133,7 +133,9 @@ func parseFromFile(cnf *CliConfig) error {
 		return err
 	}
 	if fileConf.Address != "" && cnf.ServerURL == DefaultServerURL {
-		cnf.ServerURL = fileConf.Address
+		if err = setServerURL(fileConf.Address, cnf); err != nil {
+			return err
+		}
 	}
 	if fileConf.ReportInterval.Duration != 0 && cnf.ReportInterval == DefaultReportInterval {
 		cnf.ReportInterval = int64(fileConf.ReportInterval.Seconds())

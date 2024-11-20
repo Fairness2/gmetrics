@@ -11,4 +11,5 @@ type FileConfig struct {
 	StoreFile     string         `json:"store_file"`
 	DatabaseDsn   string         `json:"database_dsn"`
 	CryptoKey     string         `json:"crypto_key"`
+	TrustedSubnet string         `json:"trusted_subnet"`
 }

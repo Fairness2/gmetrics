@@ -1,13 +1,13 @@
 package sendpool
 
 import (
+	"github.com/go-chi/chi/v5"
+	"github.com/go-resty/resty/v2"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -86,6 +86,30 @@ func TestRestClient_Post(t *testing.T) {
 			client := NewRestClient(srv.URL)
 			_, err := client.Post(tt.url, tt.body, tt.headers...)
 			assert.NoError(t, err)
+		})
+	}
+}
+
+// TestGetNetAddr tests the getNetAddr function.
+func TestGetNetAddr(t *testing.T) {
+	tests := []struct {
+		desc    string
+		wantErr bool
+	}{
+		{
+			desc:    "valid IP address",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			_, err := getNetAddr()
+			if tt.wantErr {
+				assert.Error(t, err, "expected error")
+			} else {
+				assert.NoError(t, err, "unexpected error")
+			}
 		})
 	}
 }

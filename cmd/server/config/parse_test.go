@@ -378,3 +378,48 @@ func TestParseFromFile(t *testing.T) {
 		})
 	}
 }
+
+// Test cases for parseSubnet function
+func TestParseSubnet(t *testing.T) {
+	tests := []struct {
+		name    string
+		in      string
+		wantNil bool
+		wantErr bool
+	}{
+		{
+			name:    "empty_subnet",
+			in:      "",
+			wantNil: true,
+			wantErr: false,
+		},
+		{
+			name:    "valid_subnet",
+			in:      "192.0.2.0/24",
+			wantNil: false,
+			wantErr: false,
+		},
+		{
+			name:    "invalid_subnet",
+			in:      "192.0.2.0/42",
+			wantNil: true,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseSubnet(tt.in)
+			if tt.wantNil {
+				assert.Nil(t, got)
+			} else {
+				assert.NotNil(t, got)
+			}
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

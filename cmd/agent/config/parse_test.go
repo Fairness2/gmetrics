@@ -275,7 +275,7 @@ func TestParseFromFile(t *testing.T) {
 				}
 			},
 			want: &CliConfig{
-				ServerURL:      "localhost:8086",
+				ServerURL:      "http://localhost:8086",
 				ReportInterval: 1,
 				PollInterval:   1,
 				CryptoKeyPath:  "/path/to/key.pem",
