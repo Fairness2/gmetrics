@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"gmetrics/cmd/agent/collector/collection"
 	"gmetrics/cmd/agent/config"
+	"gmetrics/cmd/agent/sendpool"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metricerrors"
 	"gmetrics/internal/metrics"
@@ -25,7 +26,7 @@ type Client struct {
 
 // Sender интерфейс для пула конектов к серверу
 type Sender interface {
-	Send(body []payload.Metrics) (*resty.Response, error)
+	Send(body []payload.Metrics) (sendpool.MetricResponse, error)
 }
 
 // New инициализирует и возвращает новый экземпляр клиента с заданным набором метрик и пулом отправки.

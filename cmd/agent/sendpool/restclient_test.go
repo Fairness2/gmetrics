@@ -31,7 +31,8 @@ func TestNewRestClient(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			got := NewRestClient(tt.baseURL)
+			got, err := NewRestClient(tt.baseURL)
+			assert.NoError(t, err)
 			if got.client.BaseURL != tt.want.BaseURL {
 				t.Errorf("NewRestClient() baseURL = %v, want %v", got.client.BaseURL, tt.want.BaseURL)
 			}
@@ -83,7 +84,8 @@ func TestRestClient_Post(t *testing.T) {
 			// запускаем тестовый сервер, будет выбран первый свободный порт
 			srv := httptest.NewServer(router)
 
-			client := NewRestClient(srv.URL)
+			client, cErr := NewRestClient(srv.URL)
+			assert.NoError(t, cErr)
 			_, err := client.Post(tt.url, tt.body, tt.headers...)
 			assert.NoError(t, err)
 		})
@@ -110,6 +112,27 @@ func TestGetNetAddr(t *testing.T) {
 			} else {
 				assert.NoError(t, err, "unexpected error")
 			}
+		})
+	}
+}
+
+func TestRESTClient_EnableManualCompression(t *testing.T) {
+	tests := []struct {
+		name      string
+		client    RestClient
+		expectVal bool
+	}{
+		{
+			name:      "test_enable_manual_compression_false",
+			client:    RestClient{},
+			expectVal: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.client.EnableManualCompression()
+			assert.Equal(t, tt.expectVal, result, "EnableManualCompression() should return %v", tt.expectVal)
 		})
 	}
 }

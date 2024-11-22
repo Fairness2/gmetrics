@@ -15,7 +15,12 @@ import (
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/middlewares"
+	pb "gmetrics/internal/payload/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/encoding"
+	"google.golang.org/grpc/encoding/gzip"
 	"log"
+	"net"
 	"net/http"
 	_ "net/http/pprof" // подключаем пакет pprof
 	"os/signal"
@@ -71,7 +76,11 @@ func runApplication() error {
 	)
 
 	// Вызываем функцию закрытия базы данных
-	defer closeDB()
+	defer func() {
+		if cDBErr := closeDB(); cDBErr != nil {
+			logger.Log.Error(cDBErr)
+		}
+	}()
 	// Инициализируем базу данных
 	//err = initDB(ctx, wg)
 	err = initDB()
@@ -96,6 +105,16 @@ func runApplication() error {
 		}
 	}
 
+	// определяем листенер для сервера rpc
+	listen, err := net.Listen("tcp", config.Params.RPCAddress)
+	if err != nil {
+		return err
+	}
+	defer listen.Close()
+	wg.Go(func() error {
+		return startRPC(listen)
+	})
+
 	server := initServer()
 	// Запускаем сервер
 	wg.Go(func() error {
@@ -109,8 +128,11 @@ func runApplication() error {
 	<-ctx.Done()
 	logger.Log.Info("Stopping server")
 	//cancel()
-	if err = stopServer(server, ctx); err != nil { // Запускаем сервер
-		return err
+	if err = stopServer(server, ctx); err != nil {
+		logger.Log.Error(err)
+	}
+	if err = listen.Close(); err != nil {
+		logger.Log.Error(err)
 	}
 
 	// Ожидаем завершения всех горутин перед завершением программы
@@ -228,7 +250,7 @@ func InitStore(ctx context.Context) {
 func initDB() error {
 	// Создание пула подключений к базе данных для приложения
 	var err error
-	database.DB, err = database.NewPgDB(config.Params.DatabaseDSN)
+	database.DB, err = database.NewDB("pgx", config.Params.DatabaseDSN)
 	if err != nil {
 		return err
 	}
@@ -249,12 +271,31 @@ func initDB() error {
 }
 
 // closeDB закрытие базы данных
-func closeDB() {
+func closeDB() error {
 	logger.Log.Info("Closing database connection for defer")
 	if database.DB != nil {
 		err := database.DB.Close()
 		if err != nil {
-			logger.Log.Error(err)
+			return err
 		}
 	}
+	return nil
+}
+
+// startRPC Включаем rpc сервер
+func startRPC(listen net.Listener) error {
+	decrypter := encrypt.NewDecrypter(config.Params.CryptoKey)
+	netFilter := middlewares.NewNetworkMiddleware(config.Params.TrustedSubnet)
+	// создаём gRPC-сервер без зарегистрированной службы
+	encoding.RegisterCompressor(encoding.GetCompressor(gzip.Name))
+	s := grpc.NewServer(grpc.ChainUnaryInterceptor(
+		logger.LogInterceptor,
+		middlewares.CheckSignInterceptor,
+		decrypter.Interceptor,
+		netFilter.Interceptor,
+	))
+
+	pb.RegisterMetricsServiceServer(s, handlemetric.NewRPCManyHandler())
+
+	return s.Serve(listen)
 }

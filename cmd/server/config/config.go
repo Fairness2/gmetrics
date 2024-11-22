@@ -8,6 +8,8 @@ import (
 const (
 	// DefaultServerURL Url сервера получателя метрик по умолчанию
 	DefaultServerURL = "localhost:8080"
+	// DefaultRPCServerURL Url сервера получателя метрик по rpc по умолчанию
+	DefaultRPCServerURL = "localhost:8675"
 
 	// DefaultLogLevel Уровень логирования по умолчанию
 	DefaultLogLevel = "info"
@@ -31,6 +33,7 @@ const (
 // CliConfig конфигурация сервера из командной строки
 type CliConfig struct {
 	Address          string          `env:"ADDRESS"`        // адрес сервера
+	RPCAddress       string          `env:"RPC_ADDRESS"`    // адрес сервера
 	LogLevel         string          `env:"LOG_LEVEL"`      // Уровень логирования
 	FileStorage      string          `env:"FILE_STORAGE"`   // Путь к хранению файлов, если не указан, то будет создано обычное хранилище в памяти
 	DatabaseDSN      string          `env:"DATABASE_DSN"`   // подключение к базе данных
@@ -57,5 +60,6 @@ func InitializeDefaultConfig() *CliConfig {
 		StoreInterval: DefaultStoreInterval,
 		DatabaseDSN:   DefaultDatabaseDSN,
 		HashKey:       DefaultHashKey,
+		RPCAddress:    DefaultRPCServerURL,
 	}
 }

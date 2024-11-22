@@ -2,13 +2,19 @@ package middlewares
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"gmetrics/cmd/server/config"
 	"gmetrics/internal/helpers"
 	"gmetrics/internal/helpers/compress"
 	"gmetrics/internal/logger"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"io"
 	"net/http"
 	"strings"
@@ -71,16 +77,10 @@ func GZIPCompressResponse(next http.Handler) http.Handler {
 	})
 }
 
-// CheckSign проверка подписи запроса
+// CheckSign проверка подписи запроса. Мидлвар
 func CheckSign(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if hashHeader := r.Header.Get("HashSHA256"); hashHeader != "" && config.Params.HashKey != "" {
-			hash, err := hex.DecodeString(hashHeader)
-			if err != nil {
-				helpers.SetHTTPResponse(w, http.StatusBadRequest, []byte(err.Error()))
-				return
-			}
-
 			// Читаем тело запроса
 			rawBody, err := io.ReadAll(r.Body)
 			if err != nil {
@@ -89,15 +89,50 @@ func CheckSign(next http.Handler) http.Handler {
 			}
 			// Ставим тело снова, чтобы его можно было прочитать снова.
 			r.Body = io.NopCloser(bytes.NewBuffer(rawBody))
-
-			harsher := hmac.New(sha256.New, []byte(config.Params.HashKey))
-			harsher.Write(rawBody)
-			hashSum := harsher.Sum(nil)
-			if !hmac.Equal(hash, hashSum) {
-				helpers.SetHTTPResponse(w, http.StatusBadRequest, []byte("body sign is not correct"))
+			checkErr := checkSign(hashHeader, rawBody)
+			if checkErr != nil {
+				helpers.SetHTTPResponse(w, http.StatusBadRequest, []byte(checkErr.Error()))
 				return
 			}
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// checkSign проверка подписи запроса
+func checkSign(hashHeader string, rawBody []byte) error {
+	hash, err := hex.DecodeString(hashHeader)
+	if err != nil {
+		return err
+	}
+
+	harsher := hmac.New(sha256.New, []byte(config.Params.HashKey))
+	harsher.Write(rawBody)
+	hashSum := harsher.Sum(nil)
+	if !hmac.Equal(hash, hashSum) {
+		return errors.New("body sign is not correct")
+	}
+	return nil
+}
+
+// bodyGetter Интерфейс для получения тела запроса
+type bodyGetter interface {
+	GetBody() []byte
+}
+
+// CheckSignInterceptor проверка подписи запроса для rpc
+func CheckSignInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return handler(ctx, req)
+	}
+	hash := md.Get("HashSHA256")
+	if len(hash) > 0 && config.Params.HashKey != "" && hash[0] != "" {
+		if r, isMR := req.(bodyGetter); isMR {
+			if checkErr := checkSign(hash[0], r.GetBody()); checkErr != nil {
+				return nil, errors.Join(status.Error(codes.InvalidArgument, "cant check sign"), checkErr)
+			}
+		}
+	}
+	return handler(ctx, req)
 }

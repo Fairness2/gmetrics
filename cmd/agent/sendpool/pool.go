@@ -13,40 +13,49 @@ import (
 	"gmetrics/internal/encrypt"
 	"gmetrics/internal/logger"
 	"gmetrics/internal/payload"
+	"io"
 	"sync"
-
-	"github.com/go-resty/resty/v2"
 )
 
-// ErrorPoolIsClosed ошибка, что пул закрыт
-var ErrorPoolIsClosed = errors.New("pool is closed")
+var (
+	// ErrorPoolIsClosed ошибка, что пул закрыт
+	ErrorPoolIsClosed = errors.New("pool is closed")
+	// ErrorEmptyHashKey указывает, что хэш-ключ пуст при попытке хэширования тела.
+	ErrorEmptyHashKey = errors.New("hash key is empty")
+	// ErrorWrongWorkerSize указывает, что количество воркеров в пуле подобрано не верно, возможно меньше нуля
+	ErrorWrongWorkerSize = errors.New("wrong worker size")
+	// ErrorEmptyClient Пул передан пустой http клиент
+	ErrorEmptyClient = errors.New("empty client")
 
-// ErrorEmptyHashKey указывает, что хэш-ключ пуст при попытке хэширования тела.
-var ErrorEmptyHashKey = errors.New("hash key is empty")
+	// ErrorServerURLIsEmpty Переданные адрес сервера пустой
+	ErrorServerURLIsEmpty = errors.New("server url is empty")
 
-// ErrorWrongWorkerSize указывает, что количество воркеров в пуле подобрано не верно, возможно меньше нуля
-var ErrorWrongWorkerSize = errors.New("wrong worker size")
+	// ErrorCantCompressBody Ошибка, что мы не смогли сжать тело
+	ErrorCantCompressBody = errors.New("cant compress body")
 
-// ErrorEmptyClient Пул передан пустой http клиент
-var ErrorEmptyClient = errors.New("empty client")
+	// ErrorCantEcryptBody Ошибка, что мы не смогли зашифровать тело
+	ErrorCantEcryptBody = errors.New("cant encrypt body")
+)
 
-// ErrorServerURLIsEmpty Переданные адрес сервера пустой
-var ErrorServerURLIsEmpty = errors.New("server url is empty")
+var (
+	URLUpdates = "/updates" // адрес обновления метрик
+)
 
-// ErrorCantCompressBody Ошибка, что мы не смогли сжать тело
-var ErrorCantCompressBody = errors.New("cant compress body")
-
-// ErrorCantEcryptBody Ошибка, что мы не смогли зашифровать тело
-var ErrorCantEcryptBody = errors.New("cant encrypt body")
-
+// IClient Клиент для отправки метрик на сервер
 type IClient interface {
-	Post(url string, body []byte, headers ...Header) (*resty.Response, error)
+	Post(url string, body []byte, headers ...Header) (MetricResponse, error)
+	EnableManualCompression() bool
 }
 
 // response структура ответа из горрутины
 type response struct {
-	Res *resty.Response
+	Res MetricResponse
 	Err error
+}
+
+// MetricResponse интерфейс для ответов от сервера
+type MetricResponse interface {
+	StatusCode() int
 }
 
 // poolPayload структура тела для запроса на сервер
@@ -55,6 +64,7 @@ type poolPayload struct {
 	Body []payload.Metrics
 }
 
+// bodyPipe функция для преобразования тела запроса
 type bodyPipe func(body []byte) ([]byte, error)
 
 // Pool пул отправщиков на сервер
@@ -84,7 +94,24 @@ func New(ctx context.Context, size int, HashKey, ServerURL string, publicKey *rs
 	if ServerURL == "" {
 		return nil, ErrorServerURLIsEmpty
 	}
-	return NewWithClient(ctx, size, HashKey, NewRestClient(ServerURL), publicKey)
+	client, err := NewRestClient(ServerURL)
+	if err != nil {
+		return nil, err
+	}
+	return NewWithClient(ctx, size, HashKey, client, publicKey)
+}
+
+// NewWithRPC Создание нового пула отправщиков c rpc клиентом.
+// Закрывается по завершению контекста
+func NewWithRPC(ctx context.Context, size int, HashKey, ServerURL string, publicKey *rsa.PublicKey) (*Pool, error) {
+	if ServerURL == "" {
+		return nil, ErrorServerURLIsEmpty
+	}
+	client, err := NewRPCClient(ctx, ServerURL)
+	if err != nil {
+		return nil, err
+	}
+	return NewWithClient(ctx, size, HashKey, client, publicKey)
 }
 
 // NewWithClient инициализирует новый пул с заданным размером, хеш-ключом и rest-клиентом и запускает рабочие горутины.
@@ -120,13 +147,18 @@ func NewWithClient(ctx context.Context, size int, HashKey string, client IClient
 		pool.isClosed = true
 		pool.wg.Wait()
 		close(pool.in)
+		if cc, ok := pool.client.(io.Closer); ok {
+			if cErr := cc.Close(); cErr != nil {
+				logger.Log.Error(cErr)
+			}
+		}
 	}()
 
 	return pool, nil
 }
 
 // Send отправка метрик на сервер
-func (p *Pool) Send(body []payload.Metrics) (*resty.Response, error) {
+func (p *Pool) Send(body []payload.Metrics) (MetricResponse, error) {
 	if p.isClosed {
 		return nil, ErrorPoolIsClosed
 	}
@@ -164,9 +196,9 @@ func (p *Pool) processRequest(body *poolPayload) {
 }
 
 // sendToServer Отправка метрики
-func (p *Pool) sendToServer(body []payload.Metrics) (*resty.Response, error) {
+func (p *Pool) sendToServer(body []payload.Metrics) (MetricResponse, error) {
 	logger.Log.Info("Sending metrics")
-	headers := make([]Header, 0, 3)
+	headers := make([]Header, 0, 4)
 	headers = append(headers, Header{
 		Name:  "Content-Type",
 		Value: "application/json",
@@ -177,9 +209,14 @@ func (p *Pool) sendToServer(body []payload.Metrics) (*resty.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	pipes := make([]bodyPipe, 0, 2)
+	pipes = append(pipes, p.encryptBody)
+	if p.client.EnableManualCompression() {
+		pipes = append(pipes, p.compressBody)
+	}
 
 	// Шифруем тело и Сжимаем тело
-	compressedBody, err := p.bodyPipeline(marshaledBody, p.encryptBody, p.getBody)
+	compressedBody, err := p.bodyPipeline(marshaledBody, pipes...)
 	if err != nil && !errors.Is(err, ErrorCantCompressBody) && !errors.Is(err, ErrorCantEcryptBody) {
 		return nil, err
 	}
@@ -208,7 +245,7 @@ func (p *Pool) sendToServer(body []payload.Metrics) (*resty.Response, error) {
 	}
 
 	// Отправляем запрос
-	res, err := p.client.Post("/updates", compressedBody, headers...)
+	res, err := p.client.Post(URLUpdates, compressedBody, headers...)
 	logger.Log.Info("Finish sending metrics")
 
 	return res, err
@@ -218,25 +255,6 @@ func (p *Pool) sendToServer(body []payload.Metrics) (*resty.Response, error) {
 func (p *Pool) marshalBody(body []payload.Metrics) ([]byte, error) {
 	// Преобразовываем тело в строку джейсон
 	return json.Marshal(body)
-}
-
-// getBody возвращает тело запроса, упаковывая входные данные в JSON, сжимая их с помощью gzip,
-// если это возможно, и возвращая сжатое тело вместе с логическим значением, указывающим, было ли сжатие успешным.
-// Если сжатие не удалось, функция регистрирует ошибку и возвращает несжатое тело.
-// Функция также возвращает любую ошибку, возникшую во время упаковывания или сжатия.
-// Возвращаемый [] byte содержит тело, логическое значение указывает,
-// было ли сжатие успешным, а ошибка содержит любые обнаруженные ошибки.
-func (p *Pool) getBody(body []byte) ([]byte, error) {
-	// Пробуем сжать тело
-	compressedBody, err := p.compressBody(body)
-	if err != nil {
-		// Если не получилось, то ставим обычное боди
-		logger.Log.Error("Cant compress body", err)
-		return body, errors.Join(err, ErrorCantCompressBody)
-	} else {
-		// Если получилось, то ставим заголовок о методе кодировки и ставим закодированное тело
-		return compressedBody, nil
-	}
 }
 
 // hashBody создаём подпись запроса
@@ -257,19 +275,19 @@ func (p *Pool) compressBody(body []byte) ([]byte, error) {
 	writer := p.encodeWriterPool.Get().(*gzip.Writer)
 	// Если у нас он nil, то была ошибка
 	if writer == nil {
-		return nil, errors.New("writer is nil")
+		return nil, errors.Join(errors.New("writer is nil"), ErrorCantCompressBody)
 	}
 	// Устанавливаем новый буфер во врайтер
 	writer.Reset(&buf)
 	// Кодируем данные
 	_, err := writer.Write(body)
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(err, ErrorCantCompressBody)
 	}
 	// Делаем закрытие врайтера, чтобы он прописал все нужные байты в конце. После Reset он откроется снова (Проверял,ставил последовательно закрытие, ресет с новым буфером и снова запись)
 	err = writer.Close()
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(err, ErrorCantCompressBody)
 	}
 
 	return buf.Bytes(), nil

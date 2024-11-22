@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "internal/payload/proto";
+
+message MetricsRequest {
+  bytes body = 1;
+}
+
+message MetricsResponse {
+  string status = 1;
+  string message = 2;
+}
+
+service MetricsService {
+  rpc HandleMetrics(MetricsRequest) returns (MetricsResponse);
+}

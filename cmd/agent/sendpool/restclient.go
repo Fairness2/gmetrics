@@ -3,7 +3,6 @@ package sendpool
 import (
 	"errors"
 	"github.com/go-resty/resty/v2"
-	"gmetrics/internal/logger"
 	"net"
 )
 
@@ -22,7 +21,7 @@ type RestClient struct {
 }
 
 // Post отправляет HTTP POST запрос на заданный URL с указанным телом и опциональными заголовками.
-func (r RestClient) Post(url string, body []byte, headers ...Header) (*resty.Response, error) {
+func (r RestClient) Post(url string, body []byte, headers ...Header) (MetricResponse, error) {
 	client := r.client.R()
 	for _, header := range headers {
 		client.SetHeader(header.Name, header.Value)
@@ -33,15 +32,14 @@ func (r RestClient) Post(url string, body []byte, headers ...Header) (*resty.Res
 }
 
 // NewRestClient инициализирует новый RestClient с предоставленным базовым URL-адресом.
-func NewRestClient(baseURL string) *RestClient {
+func NewRestClient(baseURL string) (*RestClient, error) {
 	c := resty.New()
 	c.BaseURL = baseURL
 	addr, err := getNetAddr()
 	if err != nil {
-		logger.Log.Error(err)
-		addr = ""
+		return nil, err
 	}
-	return &RestClient{client: c, netAddr: addr}
+	return &RestClient{client: c, netAddr: addr}, nil
 }
 
 // getNetAddr находим среди адресов комьютера IPv4, который не является локальным
@@ -56,4 +54,9 @@ func getNetAddr() (string, error) {
 		}
 	}
 	return "", ErrorNoIPAddres
+}
+
+// EnableManualCompression Необходимо ли вручную сжэимать тело запроса
+func (r RestClient) EnableManualCompression() bool {
+	return true
 }

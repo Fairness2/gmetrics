@@ -3,10 +3,13 @@ package middlewares
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"gmetrics/cmd/server/config"
+	pb "gmetrics/internal/payload/proto"
+	"google.golang.org/grpc/metadata"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -26,7 +29,7 @@ func hmacEncode(key, content string) string {
 }
 
 // TestCheckSign тест проверки подписи запроса
-func TestCheckSign(t *testing.T) {
+func TestCheckSignMiddleware(t *testing.T) {
 	testCases := []struct {
 		desc          string
 		hashKey       string
@@ -61,11 +64,13 @@ func TestCheckSign(t *testing.T) {
 			expectedError: false,
 		},
 	}
-	config.Params = &config.CliConfig{}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			config.Params.HashKey = tc.hashKey
+			config.Params = &config.CliConfig{}
+			if tc.hashKey != "" {
+				config.Params.HashKey = tc.hashKey
+			}
 
 			router := chi.NewRouter()
 			router.Use(CheckSign)
@@ -262,6 +267,162 @@ func TestGZIPCompressResponse(t *testing.T) {
 			assert.Equal(t, tc.expectedCode, result, "handler returned wrong status code")
 			assert.Equal(t, tc.body, string(resultBody), "handler returned wrong body")
 
+		})
+	}
+}
+
+// TestCheckSign тест проверки подписи запроса
+func TestCheckSign(t *testing.T) {
+	testCases := []struct {
+		desc          string
+		hashKey       string
+		hashHeader    string
+		body          string
+		expectedError bool
+	}{
+		{
+			desc:          "correct_hash",
+			hashKey:       "key",
+			hashHeader:    hmacEncode("key", "request body"),
+			body:          "request body",
+			expectedError: false,
+		},
+		{
+			desc:          "incorrect_body_hash",
+			hashKey:       "key",
+			hashHeader:    hmacEncode("key", "request body"),
+			body:          "different body",
+			expectedError: true,
+		},
+		{
+			desc:          "incorrect_hash",
+			hashKey:       "key",
+			hashHeader:    "incorrect_hash",
+			body:          "different body",
+			expectedError: true,
+		},
+		{
+			desc:          "missing_hash_key_in_config",
+			hashHeader:    hmacEncode("key", "request body"),
+			body:          "request body",
+			expectedError: true,
+		},
+		{
+			desc:          "missing_hash_in_header",
+			hashKey:       "key",
+			body:          "request body",
+			expectedError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			config.Params = &config.CliConfig{}
+			if tc.hashKey != "" {
+				config.Params.HashKey = tc.hashKey
+			}
+
+			err := checkSign(tc.hashHeader, []byte(tc.body))
+			if !tc.expectedError {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}
+
+// TestCheckSign тест проверки подписи запроса
+func TestCheckSignInterceptor(t *testing.T) {
+	testCases := []struct {
+		desc          string
+		hashKey       string
+		hashHeader    string
+		body          string
+		expectedError bool
+		hashNil       bool
+		hasNoMD       bool
+	}{
+		{
+			desc:          "correct_hash",
+			hashKey:       "key",
+			hashHeader:    hmacEncode("key", "request body"),
+			body:          "request body",
+			expectedError: false,
+		},
+		{
+			desc:          "incorrect_body_hash",
+			hashKey:       "key",
+			hashHeader:    hmacEncode("key", "request body"),
+			body:          "different body",
+			expectedError: true,
+		},
+		{
+			desc:          "incorrect_hash",
+			hashKey:       "key",
+			hashHeader:    "incorrect_hash",
+			body:          "different body",
+			expectedError: true,
+		},
+		{
+			desc:          "missing_hash_key_in_config",
+			hashHeader:    hmacEncode("key", "request body"),
+			body:          "request body",
+			expectedError: false,
+		},
+		{
+			desc:          "missing_hash_in_header",
+			hashKey:       "key",
+			body:          "request body",
+			expectedError: false,
+		},
+		{
+			desc:          "missing_md",
+			hashKey:       "key",
+			body:          "request body",
+			expectedError: false,
+			hasNoMD:       true,
+		},
+		{
+			desc:          "missing_md_hash",
+			hashKey:       "key",
+			body:          "request body",
+			expectedError: false,
+			hashNil:       true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			config.Params = &config.CliConfig{}
+			if tc.hashKey != "" {
+				config.Params.HashKey = tc.hashKey
+			}
+
+			var ctx context.Context
+			var req = &pb.MetricsRequest{Body: []byte(tc.body)}
+			if tc.hashHeader != "" {
+				md := metadata.Pairs("HashSHA256", tc.hashHeader)
+				ctx = metadata.NewIncomingContext(context.TODO(), md)
+			} else {
+				if tc.hashNil {
+					md := metadata.Pairs("HashSHA2561", "")
+					ctx = metadata.NewIncomingContext(context.TODO(), md)
+				} else {
+					md := metadata.Pairs("HashSHA256", "")
+					ctx = metadata.NewIncomingContext(context.TODO(), md)
+				}
+			}
+			if tc.hasNoMD {
+				ctx = context.TODO()
+			}
+			_, err := CheckSignInterceptor(ctx, req, nil, func(ctx context.Context, req any) (any, error) { return nil, nil }) // passing nil for info and handler
+
+			if !tc.expectedError {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
 		})
 	}
 }

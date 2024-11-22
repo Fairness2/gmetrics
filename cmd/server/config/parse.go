@@ -58,6 +58,9 @@ func parseFromEnv(params *CliConfig) error {
 	if cnf.Address != "" {
 		params.Address = cnf.Address
 	}
+	if cnf.RPCAddress != "" {
+		params.RPCAddress = cnf.RPCAddress
+	}
 	if cnf.LogLevel != "" {
 		params.LogLevel = cnf.LogLevel
 	}
@@ -92,6 +95,7 @@ func parseFromEnv(params *CliConfig) error {
 func parseFromCli(cnf *CliConfig) (parseError error) {
 	// Регистрируем флаги конфигурации
 	flag.StringVar(&cnf.Address, "a", DefaultServerURL, "address and port to run server")
+	flag.StringVar(&cnf.RPCAddress, "ra", DefaultRPCServerURL, "address and port to run rpc server")
 	flag.StringVar(&cnf.LogLevel, "ll", DefaultLogLevel, "level of logging")
 	flag.StringVar(&cnf.FileStorage, "f", DefaultFilePath, "store file path")
 	flag.StringVar(&cnf.DatabaseDSN, "d", DefaultDatabaseDSN, "database connection")
@@ -126,6 +130,9 @@ func parseFromFile(cnf *CliConfig) error {
 	}
 	if fileConf.Address != "" && cnf.Address == DefaultServerURL {
 		cnf.Address = fileConf.Address
+	}
+	if fileConf.RPCAddress != "" && cnf.RPCAddress == DefaultRPCServerURL {
+		cnf.RPCAddress = fileConf.RPCAddress
 	}
 	if fileConf.StoreInterval.Duration != 0 && cnf.StoreInterval == DefaultStoreInterval {
 		cnf.StoreInterval = int64(fileConf.StoreInterval.Seconds())

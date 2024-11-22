@@ -59,7 +59,7 @@ func main() {
 	}() // Запускаем сборку данных использования системы
 
 	// Создаём пул отправок на сервер
-	sendPool, poolErr := sendpool.New(ctx, config.Params.RateLimit, config.Params.HashKey, config.Params.ServerURL, config.Params.CryptoKey)
+	sendPool, poolErr := sendpool.NewWithRPC(ctx, config.Params.RateLimit, config.Params.HashKey, config.Params.ServerURL, config.Params.CryptoKey)
 	if poolErr != nil {
 		log.Fatal(poolErr)
 	}
