@@ -90,17 +90,18 @@ func runApplication() error {
 
 	// Вызываем функцию закрытия
 	defer closeStorage()
-	wg := new(errgroup.Group)
+	//wg := new(errgroup.Group)
+	wg, ctx2 := errgroup.WithContext(ctx)
 	//wg := sync.WaitGroup{} // Группа для синхронизации
 	// Инициализируем хранилище
-	InitStore(ctx)
+	InitStore(ctx2)
 	// Запускаем синхронизацию хранилища, если оно это подразумевает
 	if st, ok := metrics.MeStore.(metrics.ISynchronizationStorage); ok {
-		ctx = context.WithValue(ctx, contextkeys.SyncInterval, config.Params.StoreInterval)
+		ctx3 := context.WithValue(ctx2, contextkeys.SyncInterval, config.Params.StoreInterval)
 		// Запускаем синхронизацию в файл
 		if !st.IsSyncMode() {
 			wg.Go(func() error {
-				return st.Sync(ctx)
+				return st.Sync(ctx3)
 			})
 		}
 	}
@@ -125,10 +126,10 @@ func runApplication() error {
 		return nil
 	})
 	// Регистрируем прослушиватель для закрытия записи в файл и завершения сервера
-	<-ctx.Done()
+	<-ctx2.Done()
 	logger.Log.Info("Stopping server")
 	//cancel()
-	if err = stopServer(server, ctx); err != nil {
+	if err = stopServer(server, ctx2); err != nil {
 		logger.Log.Error(err)
 	}
 	if err = listen.Close(); err != nil {

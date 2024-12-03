@@ -83,15 +83,16 @@ func (d Decrypter) Interceptor(ctx context.Context, req any, info *grpc.UnarySer
 		return handler(ctx, req)
 	}
 	h := md.Get("X-Body-Encrypted")
-	if len(h) > 0 && d.privateKey != nil {
-		if r, isMR := req.(*pb.MetricsRequest); isMR {
-			decryptBody, err := d.decrypt(r.GetBody())
-			if err != nil {
-				return nil, errors.Join(status.Error(codes.InvalidArgument, "cant decrypt body"), err)
-			}
-			r.Body = decryptBody
-			return handler(ctx, r)
+	if !(len(h) > 0 && d.privateKey != nil) {
+		return handler(ctx, req)
+	}
+	if r, isMR := req.(*pb.MetricsRequest); isMR {
+		decryptBody, err := d.decrypt(r.GetBody())
+		if err != nil {
+			return nil, errors.Join(status.Error(codes.InvalidArgument, "cant decrypt body"), err)
 		}
+		r.Body = decryptBody
+		return handler(ctx, r)
 	}
 	return handler(ctx, req)
 }

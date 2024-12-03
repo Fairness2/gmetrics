@@ -21,7 +21,7 @@ func TestNewDB(t *testing.T) {
 		},
 		{
 			name:    "valid_dsn_but_not_pingable",
-			dsn:     "postgresql://postgres:example@127.0.0.1:5432/gmetrics",
+			dsn:     "postgresql://postgres:example@127.0.0.1:5432/gmetrics123",
 			driver:  "pgx",
 			wantErr: ErrorCantPing,
 		},

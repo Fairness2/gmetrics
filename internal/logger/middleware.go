@@ -82,6 +82,5 @@ func LogInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, ha
 			"status", status.Code(err),
 		)
 	}()
-	resp, err = handler(ctx, req)
-	return resp, err
+	return handler(ctx, req)
 }
