@@ -2,11 +2,17 @@ package encrypt
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"errors"
 	"gmetrics/internal/helpers"
+	pb "gmetrics/internal/payload/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"io"
 	"math"
 	"net/http"
@@ -68,6 +74,27 @@ func (d Decrypter) Middleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(newWriter, r)
 	})
+}
+
+// Interceptor мидлварь для rpc
+func (d Decrypter) Interceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return handler(ctx, req)
+	}
+	h := md.Get("X-Body-Encrypted")
+	if !(len(h) > 0 && d.privateKey != nil) {
+		return handler(ctx, req)
+	}
+	if r, isMR := req.(*pb.MetricsRequest); isMR {
+		decryptBody, err := d.decrypt(r.GetBody())
+		if err != nil {
+			return nil, errors.Join(status.Error(codes.InvalidArgument, "cant decrypt body"), err)
+		}
+		r.Body = decryptBody
+		return handler(ctx, r)
+	}
+	return handler(ctx, req)
 }
 
 // Разделение текста на блоки нужного размера

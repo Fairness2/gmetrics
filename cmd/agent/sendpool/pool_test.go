@@ -120,6 +120,7 @@ func TestNew(t *testing.T) {
 		})
 	}
 }
+
 func TestMarshalBody(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -152,6 +153,61 @@ func TestMarshalBody(t *testing.T) {
 				return
 			}
 			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestNewWithRPC(t *testing.T) {
+	tests := []struct {
+		name      string
+		size      int
+		hashKey   string
+		wantErr   error
+		serverURL string
+	}{
+		{
+			name:      "valid_input",
+			size:      10,
+			hashKey:   "test",
+			serverURL: "http://localhost:8080",
+		},
+		{
+			name:      "negative_size",
+			size:      -5,
+			hashKey:   "test",
+			wantErr:   ErrorWrongWorkerSize,
+			serverURL: "http://localhost:8080",
+		},
+		{
+			name:      "empty_hash_key",
+			size:      10,
+			hashKey:   "",
+			wantErr:   ErrorEmptyHashKey,
+			serverURL: "http://localhost:8080",
+		},
+		{
+			name:      "empty_server_url",
+			size:      10,
+			hashKey:   "",
+			wantErr:   ErrorServerURLIsEmpty,
+			serverURL: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.TODO())
+			defer cancel()
+
+			got, err := NewWithRPC(ctx, tt.size, tt.hashKey, tt.serverURL, nil)
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+				return
+			}
+			cancel()
+			assert.NotNil(t, got)
+			assert.Equal(t, tt.hashKey, got.HashKey)
+			//assert.True(t, got.isClosed)
 		})
 	}
 }

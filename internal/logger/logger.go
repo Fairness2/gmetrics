@@ -46,3 +46,18 @@ func New(level zap.AtomicLevel) (*zap.SugaredLogger, error) {
 func ParseLevel(level string) (zap.AtomicLevel, error) {
 	return zap.ParseAtomicLevel(level)
 }
+
+// InitLogger инициализируем логер
+func InitLogger(logLevel string) (*zap.SugaredLogger, error) {
+	loggerLevel, err := ParseLevel(logLevel)
+	if err != nil {
+		return nil, err
+	}
+	lgr, err := New(loggerLevel)
+	if err != nil {
+		return nil, err
+	}
+	Log = lgr
+
+	return lgr, nil
+}

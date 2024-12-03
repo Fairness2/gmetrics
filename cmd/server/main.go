@@ -15,7 +15,12 @@ import (
 	"gmetrics/internal/logger"
 	"gmetrics/internal/metrics"
 	"gmetrics/internal/middlewares"
+	pb "gmetrics/internal/payload/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/encoding"
+	"google.golang.org/grpc/encoding/gzip"
 	"log"
+	"net"
 	"net/http"
 	_ "net/http/pprof" // подключаем пакет pprof
 	"os/signal"
@@ -23,7 +28,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	cMiddleware "github.com/go-chi/chi/v5/middleware"
-	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -56,13 +60,27 @@ func runApplication() error {
 		cancel()
 	}()
 
-	_, err := InitLogger()
+	_, err := logger.InitLogger(config.Params.LogLevel)
 	if err != nil {
 		return err
 	}
 
+	// Показываем конфигурацию сервера
+	logger.Log.Infow("Running server with configuration",
+		"address", config.Params.Address,
+		"logLevel", config.Params.LogLevel,
+		"fileStorage", config.Params.FileStorage,
+		"restore", config.Params.Restore,
+		"storeInterval", config.Params.StoreInterval,
+		"databaseDSN", config.Params.DatabaseDSN,
+	)
+
 	// Вызываем функцию закрытия базы данных
-	defer closeDB()
+	defer func() {
+		if cDBErr := closeDB(); cDBErr != nil {
+			logger.Log.Error(cDBErr)
+		}
+	}()
 	// Инициализируем базу данных
 	//err = initDB(ctx, wg)
 	err = initDB()
@@ -72,20 +90,31 @@ func runApplication() error {
 
 	// Вызываем функцию закрытия
 	defer closeStorage()
-	wg := new(errgroup.Group)
+	//wg := new(errgroup.Group)
+	wg, ctx2 := errgroup.WithContext(ctx)
 	//wg := sync.WaitGroup{} // Группа для синхронизации
 	// Инициализируем хранилище
-	InitStore(ctx)
+	InitStore(ctx2)
 	// Запускаем синхронизацию хранилища, если оно это подразумевает
 	if st, ok := metrics.MeStore.(metrics.ISynchronizationStorage); ok {
-		ctx = context.WithValue(ctx, contextkeys.SyncInterval, config.Params.StoreInterval)
+		ctx3 := context.WithValue(ctx2, contextkeys.SyncInterval, config.Params.StoreInterval)
 		// Запускаем синхронизацию в файл
 		if !st.IsSyncMode() {
 			wg.Go(func() error {
-				return st.Sync(ctx)
+				return st.Sync(ctx3)
 			})
 		}
 	}
+
+	// определяем листенер для сервера rpc
+	listen, err := net.Listen("tcp", config.Params.RPCAddress)
+	if err != nil {
+		return err
+	}
+	defer listen.Close()
+	wg.Go(func() error {
+		return startRPC(listen)
+	})
 
 	server := initServer()
 	// Запускаем сервер
@@ -97,11 +126,14 @@ func runApplication() error {
 		return nil
 	})
 	// Регистрируем прослушиватель для закрытия записи в файл и завершения сервера
-	<-ctx.Done()
+	<-ctx2.Done()
 	logger.Log.Info("Stopping server")
 	//cancel()
-	if err = stopServer(server, ctx); err != nil { // Запускаем сервер
-		return err
+	if err = stopServer(server, ctx2); err != nil {
+		logger.Log.Error(err)
+	}
+	if err = listen.Close(); err != nil {
+		logger.Log.Error(err)
 	}
 
 	// Ожидаем завершения всех горутин перед завершением программы
@@ -151,6 +183,7 @@ func stopServer(server *http.Server, ctx context.Context) error {
 func getRouter() chi.Router {
 	router := chi.NewRouter()
 	decrypter := encrypt.NewDecrypter(config.Params.CryptoKey)
+	netFilter := middlewares.NewNetworkMiddleware(config.Params.TrustedSubnet)
 	// Устанавилваем мидлваре
 	router.Use(
 		cMiddleware.StripSlashes,         // Убираем лишние слеши
@@ -160,8 +193,12 @@ func getRouter() chi.Router {
 		middlewares.GZIPDecompressRequest, // Разжимаем тело ответа
 		decrypter.Middleware,
 	)
-	// Сохранение метрики по URL
-	router.Post("/update/{type}/{name}/{value}", handlemetric.URLHandler)
+	router.Group(func(r chi.Router) {
+		r.Use(netFilter.FilterNetwork)
+		// Сохранение метрики по URL
+		r.Post("/update/{type}/{name}/{value}", handlemetric.URLHandler)
+	})
+
 	// Получение всех метрик
 	router.Get("/", getmetrics.Handler)
 	// Получение отдельной метрики
@@ -173,8 +210,8 @@ func getRouter() chi.Router {
 	router.Group(func(r chi.Router) {
 		// Устанавилваем мидлваре
 		r.Use(middlewares.JSONHeaders)
-
-		router.Group(func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(netFilter.FilterNetwork)
 			// Сохранение метрики с помощью JSON тела
 			r.Post("/update", handlemetric.JSONHandler)
 			// Сохранение метрик с помощью JSON тела
@@ -209,50 +246,15 @@ func InitStore(ctx context.Context) {
 	}
 }
 
-// InitLogger инициализируем логер
-func InitLogger() (*zap.SugaredLogger, error) {
-	loggerLevel, err := logger.ParseLevel(config.Params.LogLevel)
-	if err != nil {
-		return nil, err
-	}
-	lgr, err := logger.New(loggerLevel)
-	if err != nil {
-		return nil, err
-	}
-	logger.Log = lgr
-	// Показываем конфигурацию сервера
-	logger.Log.Infow("Running server with configuration",
-		"address", config.Params.Address,
-		"logLevel", config.Params.LogLevel,
-		"fileStorage", config.Params.FileStorage,
-		"restore", config.Params.Restore,
-		"storeInterval", config.Params.StoreInterval,
-		"databaseDSN", config.Params.DatabaseDSN,
-	)
-
-	return lgr, nil
-}
-
 // initDB инициализация подключения к бд
 // func initDB(ctx context.Context, wg *errgroup.Group*) error {
 func initDB() error {
 	// Создание пула подключений к базе данных для приложения
 	var err error
-	database.DB, err = database.NewPgDB(config.Params.DatabaseDSN)
+	database.DB, err = database.NewDB("pgx", config.Params.DatabaseDSN)
 	if err != nil {
 		return err
 	}
-
-	/*wg.Go(func() error {
-		<-ctx.Done()
-		logger.Log.Info("Closing database connection for context")
-
-		if dErr := database.DB.Close(); dErr != nil {
-			return dErr
-			//logger.Log.Error(err)
-		}
-		return nil
-	})*/
 
 	if config.Params.DatabaseDSN != "" {
 		logger.Log.Info("Migrate migrations")
@@ -270,12 +272,31 @@ func initDB() error {
 }
 
 // closeDB закрытие базы данных
-func closeDB() {
+func closeDB() error {
 	logger.Log.Info("Closing database connection for defer")
 	if database.DB != nil {
 		err := database.DB.Close()
 		if err != nil {
-			logger.Log.Error(err)
+			return err
 		}
 	}
+	return nil
+}
+
+// startRPC Включаем rpc сервер
+func startRPC(listen net.Listener) error {
+	decrypter := encrypt.NewDecrypter(config.Params.CryptoKey)
+	netFilter := middlewares.NewNetworkMiddleware(config.Params.TrustedSubnet)
+	// создаём gRPC-сервер без зарегистрированной службы
+	encoding.RegisterCompressor(encoding.GetCompressor(gzip.Name))
+	s := grpc.NewServer(grpc.ChainUnaryInterceptor(
+		logger.LogInterceptor,
+		middlewares.CheckSignInterceptor,
+		decrypter.Interceptor,
+		netFilter.Interceptor,
+	))
+
+	pb.RegisterMetricsServiceServer(s, handlemetric.NewRPCManyHandler())
+
+	return s.Serve(listen)
 }

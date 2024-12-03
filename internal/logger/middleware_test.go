@@ -1,7 +1,9 @@
 package logger
 
 import (
+	"context"
 	"fmt"
+	"google.golang.org/grpc"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -143,6 +145,43 @@ func TestLogRequests(t *testing.T) {
 			res, err := request.Send()
 			assert.NoError(t, err, "error making HTTP request")
 			assert.Equal(t, tt.wantStatus, res.StatusCode())
+		})
+	}
+}
+
+func TestLogInterceptor(t *testing.T) {
+	tests := []struct {
+		name            string
+		request         func() *grpc.UnaryServerInfo
+		wantStatus      int
+		wantMessagesCnt int
+		wantLogs        []string
+	}{
+		{
+			name:            "get_request",
+			wantStatus:      http.StatusOK,
+			wantMessagesCnt: 2,
+			request: func() *grpc.UnaryServerInfo {
+				return &grpc.UnaryServerInfo{
+					FullMethod: "aboba",
+				}
+			},
+			wantLogs: []string{"Got incoming RPC request [method RPC path aboba]", "Got incoming RPC request [method RPC path aboba"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			Log = &InternalLogger{
+				logs: make([]string, 2),
+			}
+
+			ctx := context.TODO()
+			req := struct{}{} //fake request
+
+			_, err := LogInterceptor(ctx, req, tt.request(), func(ctx context.Context, req any) (any, error) { return nil, nil }) // passing nil for info and handler
+
+			assert.NoError(t, err, "error making HTTP request")
 		})
 	}
 }

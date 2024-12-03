@@ -1,7 +1,10 @@
 package logger
 
 import (
+	"context"
 	"fmt"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 	"net/http"
 	"time"
 )
@@ -60,4 +63,24 @@ func (r *responseWriterWithLogging) Write(body []byte) (int, error) {
 func (r *responseWriterWithLogging) WriteHeader(statusCode int) {
 	r.data.status = statusCode
 	r.ResponseWriter.WriteHeader(statusCode)
+}
+
+// LogInterceptor интерсептор, который регистрирует данные запроса по rpc
+// Функция регистрирует метод, путь и продолжительность каждого запроса
+func LogInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+	start := time.Now()
+	Log.Infow("Got incoming RPC request",
+		"method", "RPC",
+		"path", info.FullMethod,
+	)
+	// Регистрируем завершающую функцию, чтобы залогировать в любом случае
+	defer func() {
+		Log.Infow("Got incoming RPC request",
+			"method", "RPC",
+			"path", info.FullMethod,
+			"duration", time.Since(start),
+			"status", status.Code(err),
+		)
+	}()
+	return handler(ctx, req)
 }

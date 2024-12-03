@@ -19,6 +19,7 @@ func Benchmark(b *testing.B) {
 	restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, nil).
 		AnyTimes()
+	restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 	p, err := NewWithClient(context.TODO(), 2, "aboba", restClient, nil)
 	if err != nil {
 		assert.NoError(b, err)
@@ -124,44 +125,6 @@ func TestPoolHashBody(t *testing.T) {
 	}
 }
 
-// TestPoolGetBody tests the method compressBody of the Pool struct.
-func TestPoolGetBody(t *testing.T) {
-	tests := []struct {
-		name    string
-		body    []byte
-		wantErr bool
-	}{
-		{
-			name:    "normal_case",
-			body:    []byte("test"),
-			wantErr: false,
-		},
-		{
-			name:    "empty_body",
-			body:    []byte(""),
-			wantErr: false,
-		},
-		{
-			name:    "nil_body",
-			body:    nil,
-			wantErr: false,
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			p := &Pool{
-				encodeWriterPool: sync.Pool{
-					New: newEncoder,
-				},
-			}
-			_, err := p.getBody(tc.body)
-			if (err != nil) != tc.wantErr {
-				t.Errorf("Pool.getBody() error = %v, wantErr %v", err, tc.wantErr)
-			}
-		})
-	}
-}
-
 // TestPoolMarshalBody tests the method marshalBody of the Pool struct.
 func TestPoolMarshalBody(t *testing.T) {
 	tests := []struct {
@@ -244,6 +207,7 @@ func TestPool_sendToServer(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, nil).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 200,
@@ -275,6 +239,7 @@ func TestPool_sendToServer(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, nil).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 200,
@@ -291,6 +256,7 @@ func TestPool_sendToServer(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, httpError).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 200,
@@ -306,6 +272,7 @@ func TestPool_sendToServer(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 400}}, nil).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 400,
@@ -369,6 +336,7 @@ func TestPool_processRequest(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, nil).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 200,
@@ -385,6 +353,7 @@ func TestPool_processRequest(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, nil).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 200,
@@ -402,6 +371,7 @@ func TestPool_processRequest(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, httpError).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 200,
@@ -418,6 +388,7 @@ func TestPool_processRequest(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 400}}, nil).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 400,
@@ -483,6 +454,7 @@ func TestPool_worker(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, nil).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 200,
@@ -499,6 +471,7 @@ func TestPool_worker(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, nil).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 200,
@@ -516,6 +489,7 @@ func TestPool_worker(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, httpError).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 200,
@@ -532,6 +506,7 @@ func TestPool_worker(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 400}}, nil).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 400,
@@ -548,6 +523,7 @@ func TestPool_worker(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 400}}, nil).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 400,
@@ -627,6 +603,7 @@ func TestPool_Send(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, nil).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 200,
@@ -642,6 +619,7 @@ func TestPool_Send(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, nil).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 200,
@@ -658,6 +636,7 @@ func TestPool_Send(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 200}}, httpError).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 200,
@@ -673,6 +652,7 @@ func TestPool_Send(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 400}}, nil).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 400,
@@ -688,6 +668,7 @@ func TestPool_Send(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 400}}, nil).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 400,
@@ -704,6 +685,7 @@ func TestPool_Send(t *testing.T) {
 				restClient.EXPECT().Post(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&resty.Response{RawResponse: &http.Response{StatusCode: 400}}, nil).
 					AnyTimes()
+				restClient.EXPECT().EnableManualCompression().Return(true).AnyTimes()
 				return restClient
 			},
 			resultStatus: 400,

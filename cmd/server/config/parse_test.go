@@ -1,11 +1,16 @@
+// File: parse_test.go
 package config
 
 import (
 	"flag"
+	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+)
 
-	"github.com/stretchr/testify/assert"
+const (
+	testFilePath    = "test_config.json"
+	nonExistentFile = "non_existent_file.json"
 )
 
 func TestParseFromCli(t *testing.T) {
@@ -236,6 +241,185 @@ func TestParse(t *testing.T) {
 				return
 			}
 			assert.Truef(t, compareConfigs(tc.expected, actual), "Expected %+v, but got %+v", tc.expected, actual)
+		})
+	}
+}
+
+func createFileWithContent(path string, content []byte) {
+	os.WriteFile(path, content, os.ModePerm)
+}
+
+func TestParseFromFile(t *testing.T) {
+	tests := []struct {
+		name       string
+		cfgPath    string
+		want       *CliConfig
+		wantErr    bool
+		getCnf     func(t *testing.T) *CliConfig
+		fileConfig string
+	}{
+		{
+			name:    "no_config_file_provided",
+			cfgPath: "",
+			want:    &CliConfig{},
+			getCnf: func(t *testing.T) *CliConfig {
+				return &CliConfig{
+					ConfigFilePath: "",
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name:    "config_file_does_not_exist",
+			cfgPath: nonExistentFile,
+			want:    &CliConfig{},
+			getCnf: func(t *testing.T) *CliConfig {
+				return &CliConfig{
+					ConfigFilePath: nonExistentFile,
+				}
+			},
+			wantErr: true,
+		},
+		{
+			name:    "config_file_exists_with_valid_data",
+			cfgPath: testFilePath,
+			fileConfig: `{
+    "address": "localhost:8086",
+    "restore": true,
+    "store_interval": "1s",
+    "store_file": "/path/to/file.db",
+    "database_dsn": "123",
+    "crypto_key": "/path/to/key.pem"
+}`,
+			getCnf: func(t *testing.T) *CliConfig {
+				return &CliConfig{
+					Address:        DefaultServerURL,
+					StoreInterval:  DefaultStoreInterval,
+					Restore:        DefaultRestore,
+					FileStorage:    DefaultFilePath,
+					DatabaseDSN:    DefaultDatabaseDSN,
+					CryptoKeyPath:  "",
+					ConfigFilePath: testFilePath,
+				}
+			},
+			want: &CliConfig{
+				Address:        "localhost:8086",
+				StoreInterval:  1,
+				Restore:        true,
+				FileStorage:    "/path/to/file.db",
+				DatabaseDSN:    "123",
+				CryptoKeyPath:  "/path/to/key.pem",
+				ConfigFilePath: testFilePath,
+			},
+			wantErr: false,
+		},
+		{
+			name:    "config_file_exists_with_invalid_data",
+			cfgPath: testFilePath,
+			fileConfig: `{
+    "address": "localhost:8`,
+			getCnf: func(t *testing.T) *CliConfig {
+				return &CliConfig{
+					ConfigFilePath: testFilePath,
+				}
+			},
+			want:    &CliConfig{},
+			wantErr: true,
+		},
+		{
+			name:    "config_file_exists_with_valid_data_but_config_not_default",
+			cfgPath: testFilePath,
+			fileConfig: `{
+    "address": "localhost:8086",
+    "restore": false,
+    "store_interval": "2s",
+    "store_file": "/path/to/file1.db",
+    "database_dsn": "1243",
+    "crypto_key": "/path/to/key1.pem"
+}`,
+			getCnf: func(t *testing.T) *CliConfig {
+				return &CliConfig{
+					Address:        "localhost:8085",
+					StoreInterval:  1,
+					Restore:        true,
+					FileStorage:    "/path/to/file.db",
+					DatabaseDSN:    "123",
+					CryptoKeyPath:  "/path/to/key.pem",
+					ConfigFilePath: testFilePath,
+				}
+			},
+			want: &CliConfig{
+				Address:        "localhost:8085",
+				StoreInterval:  1,
+				Restore:        true,
+				FileStorage:    "/path/to/file.db",
+				DatabaseDSN:    "123",
+				CryptoKeyPath:  "/path/to/key.pem",
+				ConfigFilePath: testFilePath,
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.cfgPath == testFilePath {
+				defer os.Remove(tt.cfgPath)
+				createFileWithContent(tt.cfgPath, []byte(tt.fileConfig))
+			}
+			cnf := tt.getCnf(t)
+			err := parseFromFile(cnf)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Truef(t, compareConfigs(tt.want, cnf), "Expected %+v, but got %+v", tt.want, cnf)
+		})
+	}
+}
+
+// Test cases for parseSubnet function
+func TestParseSubnet(t *testing.T) {
+	tests := []struct {
+		name    string
+		in      string
+		wantNil bool
+		wantErr bool
+	}{
+		{
+			name:    "empty_subnet",
+			in:      "",
+			wantNil: true,
+			wantErr: false,
+		},
+		{
+			name:    "valid_subnet",
+			in:      "192.0.2.0/24",
+			wantNil: false,
+			wantErr: false,
+		},
+		{
+			name:    "invalid_subnet",
+			in:      "192.0.2.0/42",
+			wantNil: true,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseSubnet(tt.in)
+			if tt.wantNil {
+				assert.Nil(t, got)
+			} else {
+				assert.NotNil(t, got)
+			}
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }

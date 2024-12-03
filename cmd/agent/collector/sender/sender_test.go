@@ -2,6 +2,8 @@ package sender
 
 import (
 	"context"
+	"fmt"
+	"github.com/go-resty/resty/v2"
 	"gmetrics/cmd/agent/collector/collection"
 	"gmetrics/cmd/agent/config"
 	"gmetrics/cmd/agent/sendpool"
@@ -10,45 +12,47 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
 
 func getMockCollection() *collection.Type {
-	return &collection.Type{
-		Values: map[string]any{
-			"Alloc":         1,
-			"TotalAlloc":    2,
-			"BuckHashSys":   3,
-			"Frees":         4,
-			"GCCPUFraction": 5,
-			"GCSys":         6,
-			"HeapAlloc":     7,
-			"HeapIdle":      8,
-			"HeapInuse":     9,
-			"HeapObjects":   10,
-			"HeapReleased":  11,
-			"HeapSys":       12,
-			"LastGC":        13,
-			"Lookups":       14,
-			"MCacheInuse":   15,
-			"MCacheSys":     16,
-			"MSpanInuse":    17,
-			"MSpanSys":      18,
-			"Mallocs":       19,
-			"NextGC":        20,
-			"NumForcedGC":   21,
-			"NumGC":         22,
-			"OtherSys":      23,
-			"PauseTotalNs":  24,
-			"StackInuse":    25,
-			"StackSys":      26,
-			"Sys":           27,
-			"RandomValue":   29,
-		},
-		PollCount: 28,
+	cl := collection.NewCollection()
+	cl.Values = map[string]any{
+		"Alloc":         metrics.Gauge(1),
+		"TotalAlloc":    metrics.Gauge(2),
+		"BuckHashSys":   metrics.Gauge(3),
+		"Frees":         metrics.Gauge(4),
+		"GCCPUFraction": metrics.Gauge(5),
+		"GCSys":         metrics.Gauge(6),
+		"HeapAlloc":     metrics.Gauge(7),
+		"HeapIdle":      metrics.Gauge(8),
+		"HeapInuse":     metrics.Gauge(9),
+		"HeapObjects":   metrics.Gauge(10),
+		"HeapReleased":  metrics.Gauge(11),
+		"HeapSys":       metrics.Gauge(12),
+		"LastGC":        metrics.Gauge(13),
+		"Lookups":       metrics.Gauge(14),
+		"MCacheInuse":   metrics.Gauge(15),
+		"MCacheSys":     metrics.Gauge(16),
+		"MSpanInuse":    metrics.Gauge(17),
+		"MSpanSys":      metrics.Gauge(18),
+		"Mallocs":       metrics.Gauge(19),
+		"NextGC":        metrics.Gauge(20),
+		"NumForcedGC":   metrics.Gauge(21),
+		"NumGC":         metrics.Gauge(22),
+		"OtherSys":      metrics.Gauge(23),
+		"PauseTotalNs":  metrics.Gauge(24),
+		"StackInuse":    metrics.Gauge(25),
+		"StackSys":      metrics.Gauge(26),
+		"Sys":           metrics.Gauge(27),
+		"RandomValue":   metrics.Gauge(29),
+		"RandomCounter": metrics.Counter(29),
 	}
+	cl.PollCount = 28
+	return cl
 }
 
 func TestNew(t *testing.T) {
@@ -56,7 +60,7 @@ func TestNew(t *testing.T) {
 	assert.NotNil(t, c)
 }
 
-func TestSendMetric(t *testing.T) {
+func TestSendToServer(t *testing.T) {
 	tests := []struct {
 		name          string
 		setupMock     func() *httptest.Server
@@ -153,4 +157,158 @@ func createMockSender(t *testing.T) *MockSender {
 	s := NewMockSender(ctrl)
 
 	return s
+}
+
+func TestSendMetrics(t *testing.T) {
+	tests := []struct {
+		name                 string
+		sendToServerResponse *resty.Response
+		sendToServerError    error
+		wantError            bool
+	}{
+		{
+			name:                 "successful_send_metrics",
+			sendToServerResponse: &resty.Response{RawResponse: &http.Response{StatusCode: http.StatusOK}},
+			sendToServerError:    nil,
+			wantError:            false,
+		},
+		{
+			name:                 "send_to_server_error",
+			sendToServerResponse: nil,
+			sendToServerError:    fmt.Errorf("some error"),
+			wantError:            true,
+		},
+		{
+			name:                 "unsuccessful_send_metrics",
+			sendToServerResponse: &resty.Response{RawResponse: &http.Response{StatusCode: http.StatusNotFound}},
+			sendToServerError:    nil,
+			wantError:            true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mockSender := createMockSender(t)
+
+			mockSender.EXPECT().
+				Send(gomock.Any()).
+				Return(tc.sendToServerResponse, tc.sendToServerError).
+				Times(1)
+			cl := getMockCollection()
+			client := New(cl, mockSender)
+			err := client.sendMetrics()
+
+			if tc.wantError {
+				assert.Error(t, err)
+				assert.Equal(t, cl.PollCount, metrics.Counter(28))
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, cl.PollCount, metrics.Counter(0))
+			}
+		})
+	}
+}
+
+func TestRetrySend(t *testing.T) {
+	tests := []struct {
+		name       string
+		wantError  bool
+		getSenders func(t *testing.T) Sender
+	}{
+		{
+			name:      "successful_send_metrics",
+			wantError: false,
+			getSenders: func(t *testing.T) Sender {
+				mockSender := createMockSender(t)
+				mockSender.EXPECT().
+					Send(gomock.Any()).
+					Return(&resty.Response{RawResponse: &http.Response{StatusCode: http.StatusOK}}, nil).
+					AnyTimes()
+				return mockSender
+			},
+		},
+		{
+			name:      "send_to_server_not_repitable_error",
+			wantError: true,
+			getSenders: func(t *testing.T) Sender {
+				mockSender := createMockSender(t)
+				mockSender.EXPECT().
+					Send(gomock.Any()).
+					Return(nil, fmt.Errorf("some error")).
+					AnyTimes()
+				return mockSender
+			},
+		},
+		{
+			name:      "unsuccessful_send_metrics_repitable_error",
+			wantError: true,
+			getSenders: func(t *testing.T) Sender {
+				mockSender := createMockSender(t)
+				mockSender.EXPECT().
+					Send(gomock.Any()).
+					Return(&resty.Response{RawResponse: &http.Response{StatusCode: http.StatusInternalServerError}}, nil).
+					AnyTimes()
+				return mockSender
+			},
+		},
+		{
+			name:      "unsuccessful_send_metrics_repitable_error_ones",
+			wantError: false,
+			getSenders: func(t *testing.T) Sender {
+				mockSender := createMockSender(t)
+				first := mockSender.EXPECT().
+					Send(gomock.Any()).
+					Return(&resty.Response{RawResponse: &http.Response{StatusCode: http.StatusInternalServerError}}, nil).
+					Times(1)
+				mockSender.EXPECT().
+					Send(gomock.Any()).
+					Return(&resty.Response{RawResponse: &http.Response{StatusCode: http.StatusOK}}, nil).
+					After(first)
+				return mockSender
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cl := getMockCollection()
+			client := New(cl, tc.getSenders(t))
+			client.retrySend()
+		})
+	}
+}
+
+func TestPeriodicSender(t *testing.T) {
+	tests := []struct {
+		name      string
+		doneAfter time.Duration
+	}{
+		{
+			name:      "sender_called_before_context_done",
+			doneAfter: 3 * time.Second,
+		},
+		{
+			name:      "sender_not_called_if_context_done_immediately",
+			doneAfter: 0,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			config.Params = &config.CliConfig{ReportInterval: 1}
+			mockSender := NewMockSender(ctrl)
+			mockSender.EXPECT().
+				Send(gomock.Any()).
+				Return(&resty.Response{RawResponse: &http.Response{StatusCode: http.StatusOK}}, nil).
+				AnyTimes()
+			cl := getMockCollection()
+			client := New(cl, mockSender)
+
+			ctx, cancel := context.WithTimeout(context.Background(), tc.doneAfter)
+			defer cancel()
+			client.PeriodicSender(ctx)
+		})
+	}
 }

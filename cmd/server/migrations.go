@@ -9,7 +9,7 @@ import (
 // migrations устанавливает и возвращает экземпляр Migrator, настроенный для миграции базы данных приложения.
 func migrations() (*migrator.Migrator, error) {
 	// Configure migrations
-	m, err := migrator.New(
+	return migrator.New(
 		migrator.Migrations(
 			&migrator.Migration{
 				Name: "Create metric tables",
@@ -49,6 +49,4 @@ func migrations() (*migrator.Migrator, error) {
 			},
 		),
 	)
-
-	return m, err
 }
